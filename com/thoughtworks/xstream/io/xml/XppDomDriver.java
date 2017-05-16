@@ -1,18 +1,33 @@
 package com.thoughtworks.xstream.io.xml;
 
-import com.thoughtworks.xstream.io.HierarchicalStreamDriver;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
+
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-import com.thoughtworks.xstream.io.StreamException;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
+import com.thoughtworks.xstream.io.StreamException;
 import com.thoughtworks.xstream.io.xml.xppdom.Xpp3DomBuilder;
 
-import java.io.*;
+public class XppDomDriver extends AbstractXmlDriver {
+    
+    public XppDomDriver() {
+        super(new XmlFriendlyReplacer());
+    }
 
-public class XppDomDriver implements HierarchicalStreamDriver {
-
+    /**
+     * @since 1.2
+     */
+    public XppDomDriver(XmlFriendlyReplacer replacer) {
+        super(replacer);
+    }
+    
     public HierarchicalStreamReader createReader(Reader xml) {
         try {
-            return new XppDomReader(Xpp3DomBuilder.build(xml));
+            return new XppDomReader(Xpp3DomBuilder.build(xml), xmlFriendlyReplacer());
         } catch (Exception e) {
             throw new StreamException(e);
         }
@@ -23,7 +38,7 @@ public class XppDomDriver implements HierarchicalStreamDriver {
     }
 
     public HierarchicalStreamWriter createWriter(Writer out) {
-        return new PrettyPrintWriter(out);
+        return new PrettyPrintWriter(out, xmlFriendlyReplacer());
     }
 
     public HierarchicalStreamWriter createWriter(OutputStream out) {

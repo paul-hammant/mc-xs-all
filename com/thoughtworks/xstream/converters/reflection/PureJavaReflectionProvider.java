@@ -1,21 +1,23 @@
 package com.thoughtworks.xstream.converters.reflection;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Collections;
-import java.io.Serializable;
-import java.io.ObjectStreamConstants;
-import java.io.DataOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import com.thoughtworks.xstream.core.JVM;
+
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
+import java.io.ObjectStreamConstants;
+import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Pure Java ObjectFactory that instantiates objects using standard Java reflection, however the types of objects
@@ -29,9 +31,8 @@ import java.io.ObjectStreamClass;
  */
 public class PureJavaReflectionProvider implements ReflectionProvider {
 
-    private final Map serializedDataCache = Collections.synchronizedMap(new HashMap());
-
-    protected FieldDictionary fieldDictionary = new FieldDictionary();
+    private transient Map serializedDataCache = Collections.synchronizedMap(new HashMap());
+    protected transient FieldDictionary fieldDictionary = new FieldDictionary();
 
     public Object newInstance(Class type) {
         try {
@@ -60,7 +61,7 @@ public class PureJavaReflectionProvider implements ReflectionProvider {
             } else if (e.getTargetException() instanceof Error) {
                 throw (Error)e.getTargetException();
             } else {
-                throw new ObjectAccessException("Constructor for " + type.getName() + " threw an exception", e);
+                throw new ObjectAccessException("Constructor for " + type.getName() + " threw an exception", e.getTargetException());
             }
         }
     }
@@ -90,9 +91,9 @@ public class PureJavaReflectionProvider implements ReflectionProvider {
             ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(data));
             return in.readObject();
         } catch (IOException e) {
-            throw new ObjectAccessException("", e);
+            throw new ObjectAccessException("Cannot create " + type.getName() + " by JDK serialization", e);
         } catch (ClassNotFoundException e) {
-            throw new ObjectAccessException("", e);
+            throw new ObjectAccessException("Cannot find class " + e.getMessage());
         }
     }
 
@@ -132,8 +133,8 @@ public class PureJavaReflectionProvider implements ReflectionProvider {
 
     public boolean fieldDefinedInClass(String fieldName, Class type) {
         try {
-            fieldDictionary.field(type, fieldName, null);
-            return true;
+            Field field = fieldDictionary.field(type, fieldName, null);
+            return fieldModifiersSupported(field);
         } catch (ObjectAccessException e) {
             return false;
         }
@@ -146,9 +147,23 @@ public class PureJavaReflectionProvider implements ReflectionProvider {
 
     protected void validateFieldAccess(Field field) {
         if (Modifier.isFinal(field.getModifiers())) {
-            throw new ObjectAccessException("Invalid final field "
-                    + field.getDeclaringClass().getName() + "." + field.getName());
+            if (JVM.is15()) {
+                field.setAccessible(true);
+            } else {
+                throw new ObjectAccessException("Invalid final field "
+                        + field.getDeclaringClass().getName() + "." + field.getName());
+            }
         }
+    }
+
+    public Field getField(Class definedIn, String fieldName) {
+        return fieldDictionary.field(definedIn, fieldName, null);
+    }
+
+    protected Object readResolve() {
+        serializedDataCache = Collections.synchronizedMap(new HashMap());
+        fieldDictionary = new FieldDictionary();
+        return this;
     }
 
 }

@@ -1,16 +1,17 @@
 package com.thoughtworks.xstream.io.xml;
 
 import javax.xml.namespace.QName;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Represents a mapping of {@link QName} intsnaces to Java class names
+ * Represents a mapping of {@link QName} instances to Java class names
  * allowing class aliases and namespace aware mappings of QNames to class names.
  *
  * @author James Strachan
- * @version $Revision: 370 $
+ * @version $Revision: 689 $
  */
 public class QNameMap {
 

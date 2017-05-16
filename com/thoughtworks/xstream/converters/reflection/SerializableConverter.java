@@ -1,20 +1,8 @@
 package com.thoughtworks.xstream.converters.reflection;
 
-import com.thoughtworks.xstream.converters.ConversionException;
-import com.thoughtworks.xstream.converters.Converter;
-import com.thoughtworks.xstream.converters.MarshallingContext;
-import com.thoughtworks.xstream.converters.UnmarshallingContext;
-import com.thoughtworks.xstream.core.util.CustomObjectInputStream;
-import com.thoughtworks.xstream.core.util.CustomObjectOutputStream;
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import com.thoughtworks.xstream.mapper.Mapper;
-
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.io.ObjectInputValidation;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
@@ -26,9 +14,19 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.thoughtworks.xstream.converters.ConversionException;
+import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.UnmarshallingContext;
+import com.thoughtworks.xstream.core.util.CustomObjectInputStream;
+import com.thoughtworks.xstream.core.util.CustomObjectOutputStream;
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
+import com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper;
+import com.thoughtworks.xstream.mapper.Mapper;
+
 /**
  * Emulates the mechanism used by standard Java Serialization for classes that implement java.io.Serializable AND
- * implement a custom readObject()/writeObject() method.
+ * implement or inherit a custom readObject()/writeObject() method.
  *
  * <h3>Supported features of serialization</h3>
  * <ul>
@@ -45,15 +43,13 @@ import java.util.Map;
  * </ul>
  *
  * @author Joe Walnes
+ * @author J&ouml;rg Schaible
  */
-public class SerializableConverter implements Converter {
-
-    private final SerializationMethodInvoker serializationMethodInvoker = new SerializationMethodInvoker();
-    private final Mapper mapper;
-    private final ReflectionProvider reflectionProvider;
+public class SerializableConverter extends AbstractReflectionConverter {
 
     private static final String ELEMENT_NULL = "null";
     private static final String ELEMENT_DEFAULT = "default";
+    private static final String ELEMENT_UNSERIALIZABLE_PARENTS = "unserializable-parents";
     private static final String ATTRIBUTE_CLASS = "class";
     private static final String ATTRIBUTE_SERIALIZATION = "serialization";
     private static final String ATTRIBUTE_VALUE_CUSTOM = "custom";
@@ -62,23 +58,20 @@ public class SerializableConverter implements Converter {
     private static final String ATTRIBUTE_NAME = "name";
 
     public SerializableConverter(Mapper mapper, ReflectionProvider reflectionProvider) {
-        this.mapper = mapper;
-        this.reflectionProvider = reflectionProvider;
+        super(mapper, new UnserializableParentsReflectionProvider(reflectionProvider));
     }
 
     public boolean canConvert(Class type) {
+        return isSerializable(type);
+    }
+
+    private boolean isSerializable(Class type) {
         return Serializable.class.isAssignableFrom(type)
           && ( serializationMethodInvoker.supportsReadObject(type, true)
             || serializationMethodInvoker.supportsWriteObject(type, true) );
     }
 
-    public void marshal(Object source, final HierarchicalStreamWriter writer, final MarshallingContext context) {
-        final Object replacedSource = serializationMethodInvoker.callWriteReplace(source);
-
-        if (replacedSource.getClass() != source.getClass()) {
-            writer.addAttribute(mapper.attributeForReadResolveField(), mapper.serializedClass(replacedSource.getClass()));
-        }
-
+    public void doMarshal(final Object source, final HierarchicalStreamWriter writer, final MarshallingContext context) {
         writer.addAttribute(ATTRIBUTE_SERIALIZATION, ATTRIBUTE_VALUE_CUSTOM);
 
         // this is an array as it's a non final value that's accessed from an anonymous inner class.
@@ -92,7 +85,7 @@ public class SerializableConverter implements Converter {
                     writer.startNode(ELEMENT_NULL);
                     writer.endNode();
                 } else {
-                    writer.startNode(mapper.serializedClass(object.getClass()));
+                    ExtendedHierarchicalStreamWriterHelper.startNode(writer, mapper.serializedClass(object.getClass()), object.getClass());
                     context.convertAnother(object);
                     writer.endNode();
                 }
@@ -134,7 +127,7 @@ public class SerializableConverter implements Converter {
                 ObjectStreamField[] fields = objectStreamClass.getFields();
                 for (int i = 0; i < fields.length; i++) {
                     ObjectStreamField field = fields[i];
-                    Object value = readField(field, currentType[0], replacedSource);
+                    Object value = readField(field, currentType[0], source);
                     if (value != null) {
                         if (!writtenClassWrapper[0]) {
                             writer.startNode(mapper.serializedClass(currentType[0]));
@@ -176,34 +169,51 @@ public class SerializableConverter implements Converter {
         };
 
         try {
-            Iterator classHieararchy = hierarchyFor(replacedSource.getClass());
+            boolean mustHandleUnserializableParent = false;
+            Iterator classHieararchy = hierarchyFor(source.getClass()).iterator();
             while (classHieararchy.hasNext()) {
                 currentType[0] = (Class) classHieararchy.next();
-                if (serializationMethodInvoker.supportsWriteObject(currentType[0], false)) {
-                    writtenClassWrapper[0] = true;
-                    writer.startNode(mapper.serializedClass(currentType[0]));
-                    ObjectOutputStream objectOutputStream = CustomObjectOutputStream.getInstance(context, callback);
-                    serializationMethodInvoker.callWriteObject(currentType[0], replacedSource, objectOutputStream);
-                    writer.endNode();
-                } else if (serializationMethodInvoker.supportsReadObject(currentType[0], false)) {
-                    // Special case for objects that have readObject(), but not writeObject().
-                    // The class wrapper is always written, whether or not this class in the hierarchy has
-                    // serializable fields. This guarantees that readObject() will be called upon deserialization.
-                    writtenClassWrapper[0] = true;
-                    writer.startNode(mapper.serializedClass(currentType[0]));
-                    callback.defaultWriteObject();
-                    writer.endNode();
+                if (!Serializable.class.isAssignableFrom(currentType[0])) {
+                    mustHandleUnserializableParent = true;
+                    continue;
                 } else {
-                    writtenClassWrapper[0] = false;
-                    callback.defaultWriteObject();
-                    if (writtenClassWrapper[0]) {
+                    if (mustHandleUnserializableParent) {
+                        marshalUnserializableParent(writer, context, source);
+                        mustHandleUnserializableParent = false;
+                    }
+                    if (serializationMethodInvoker.supportsWriteObject(currentType[0], false)) {
+                        writtenClassWrapper[0] = true;
+                        writer.startNode(mapper.serializedClass(currentType[0]));
+                        CustomObjectOutputStream objectOutputStream = CustomObjectOutputStream.getInstance(context, callback);
+                        serializationMethodInvoker.callWriteObject(currentType[0], source, objectOutputStream);
+                        objectOutputStream.popCallback();
                         writer.endNode();
+                    } else if (serializationMethodInvoker.supportsReadObject(currentType[0], false)) {
+                        // Special case for objects that have readObject(), but not writeObject().
+                        // The class wrapper is always written, whether or not this class in the hierarchy has
+                        // serializable fields. This guarantees that readObject() will be called upon deserialization.
+                        writtenClassWrapper[0] = true;
+                        writer.startNode(mapper.serializedClass(currentType[0]));
+                        callback.defaultWriteObject();
+                        writer.endNode();
+                    } else {
+                        writtenClassWrapper[0] = false;
+                        callback.defaultWriteObject();
+                        if (writtenClassWrapper[0]) {
+                            writer.endNode();
+                        }
                     }
                 }
             }
         } catch (IOException e) {
             throw new ObjectAccessException("Could not call defaultWriteObject()", e);
         }
+    }
+
+    private void marshalUnserializableParent(final HierarchicalStreamWriter writer, final MarshallingContext context, final Object replacedSource) {
+        writer.startNode(ELEMENT_UNSERIALIZABLE_PARENTS);
+        super.doMarshal(replacedSource, writer, context);
+        writer.endNode();
     }
 
     private Object readField(ObjectStreamField field, Class type, Object instance) {
@@ -222,9 +232,9 @@ public class SerializableConverter implements Converter {
         }
     }
 
-    private Iterator hierarchyFor(Class type) {
+    protected List hierarchyFor(Class type) {
         List result = new ArrayList();
-        while(type != null) {
+        while(type != Object.class) {
             result.add(type);
             type = type.getSuperclass();
         }
@@ -232,19 +242,10 @@ public class SerializableConverter implements Converter {
         // In Java Object Serialization, the classes are deserialized starting from parent class and moving down.
         Collections.reverse(result);
 
-        return result.iterator();
+        return result;
     }
 
-    public Object unmarshal(final HierarchicalStreamReader reader, final UnmarshallingContext context) {
-        String resolvesAttribute = reader.getAttribute(mapper.attributeForReadResolveField());
-        Class requiredType;
-        if (resolvesAttribute != null) {
-            requiredType = mapper.realClass(resolvesAttribute);
-        } else {
-            requiredType = context.getRequiredType();
-        }
-        final Object result = reflectionProvider.newInstance(requiredType);
-
+    public Object doUnmarshal(final Object result, final HierarchicalStreamReader reader, final UnmarshallingContext context) {
         // this is an array as it's a non final value that's accessed from an anonymous inner class.
         final Class[] currentType = new Class[1];
 
@@ -262,7 +263,7 @@ public class SerializableConverter implements Converter {
             }
 
             public Map readFieldsFromStream() {
-                Map result = new HashMap();
+                final Map fields = new HashMap();
                 reader.moveDown();
                 if (reader.getNodeName().equals(ELEMENT_FIELDS)) {
                     // Maintain compatability with XStream 1.1.0
@@ -274,7 +275,7 @@ public class SerializableConverter implements Converter {
                         String name = reader.getAttribute(ATTRIBUTE_NAME);
                         Class type = mapper.realClass(reader.getAttribute(ATTRIBUTE_CLASS));
                         Object value = context.convertAnother(result, type);
-                        result.put(name, value);
+                        fields.put(name, value);
                         reader.moveUp();
                     }
                 } else if (reader.getNodeName().equals(ELEMENT_DEFAULT)) {
@@ -296,7 +297,7 @@ public class SerializableConverter implements Converter {
                             type = field.getType();
                         }
                         Object value = context.convertAnother(result, type);
-                        result.put(name, value);
+                        fields.put(name, value);
                         reader.moveUp();
                     }
                 } else {
@@ -304,7 +305,7 @@ public class SerializableConverter implements Converter {
                             ELEMENT_DEFAULT + "/> element when calling ObjectInputStream.readFields()");
                 }
                 reader.moveUp();
-                return result;
+                return fields;
             }
 
             public void defaultReadObject() {
@@ -354,21 +355,55 @@ public class SerializableConverter implements Converter {
 
         while (reader.hasMoreChildren()) {
             reader.moveDown();
-            currentType[0] = mapper.defaultImplementationOf(mapper.realClass(reader.getNodeName()));
-            if (serializationMethodInvoker.supportsReadObject(currentType[0], false)) {
-                ObjectInputStream objectInputStream = CustomObjectInputStream.getInstance(context, callback);
-                serializationMethodInvoker.callReadObject(currentType[0], result, objectInputStream);
+            String nodeName = reader.getNodeName();
+            if (nodeName.equals(ELEMENT_UNSERIALIZABLE_PARENTS)) {
+                super.doUnmarshal(result, reader, context);
             } else {
-                try {
-                    callback.defaultReadObject();
-                } catch (IOException e) {
-                    throw new ObjectAccessException("Could not call defaultWriteObject()", e);
+                currentType[0] = mapper.defaultImplementationOf(mapper.realClass(nodeName));
+                if (serializationMethodInvoker.supportsReadObject(currentType[0], false)) {
+                    CustomObjectInputStream objectInputStream = CustomObjectInputStream.getInstance(context, callback);
+                    serializationMethodInvoker.callReadObject(currentType[0], result, objectInputStream);
+                    objectInputStream.popCallback();
+                } else {
+                    try {
+                        callback.defaultReadObject();
+                    } catch (IOException e) {
+                        throw new ObjectAccessException("Could not call defaultWriteObject()", e);
+                    }
                 }
             }
             reader.moveUp();
         }
 
-        return serializationMethodInvoker.callReadResolve(result);
+        return result;
+    }
+    
+    protected void doMarshalConditionally(final Object source, final HierarchicalStreamWriter writer, final MarshallingContext context) {
+        if(isSerializable(source.getClass())) {
+            doMarshal(source, writer, context);
+        } else {
+            super.doMarshal(source, writer, context);
+        }
+    }
+    
+    protected Object doUnmarshalConditionally(final Object result, final HierarchicalStreamReader reader, final UnmarshallingContext context) {
+        return isSerializable(result.getClass()) ? doUnmarshal(result, reader, context) : super.doUnmarshal(result, reader, context);
     }
 
+    private static class UnserializableParentsReflectionProvider extends ReflectionProviderWrapper {
+
+        public UnserializableParentsReflectionProvider(final ReflectionProvider reflectionProvider) {
+            super(reflectionProvider);
+        }
+
+        public void visitSerializableFields(final Object object, final Visitor visitor) {
+            wrapped.visitSerializableFields(object, new Visitor() {
+                public void visit(String name, Class type, Class definedIn, Object value) {
+                    if (!Serializable.class.isAssignableFrom(definedIn)) {
+                        visitor.visit(name, type, definedIn, value);
+                    }
+                }
+            });
+        }
+    }
 }

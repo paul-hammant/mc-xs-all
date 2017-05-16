@@ -12,7 +12,7 @@ import javax.xml.stream.XMLStreamReader;
  * A reader using the StAX API.
  *
  * @author James Strachan
- * @version $Revision: 578 $
+ * @version $Revision: 904 $
  */
 public class StaxReader extends AbstractPullReader {
 
@@ -20,11 +20,19 @@ public class StaxReader extends AbstractPullReader {
     private final XMLStreamReader in;
 
     public StaxReader(QNameMap qnameMap, XMLStreamReader in) {
+        this(qnameMap, in, new XmlFriendlyReplacer());
+    }
+
+    /**
+     * @since 1.2
+     */
+    public StaxReader(QNameMap qnameMap, XMLStreamReader in, XmlFriendlyReplacer replacer) {
+        super(replacer);
         this.qnameMap = qnameMap;
         this.in = in;
         moveDown();
     }
-
+    
     protected int pullNextEvent() {
         try {
             switch(in.next()) {
@@ -69,7 +77,7 @@ public class StaxReader extends AbstractPullReader {
     }
 
     public String getAttributeName(int index) {
-        return in.getAttributeLocalName(index);
+        return unescapeXmlName(in.getAttributeLocalName(index));
     }
 
     public void appendErrors(ErrorWriter errorWriter) {

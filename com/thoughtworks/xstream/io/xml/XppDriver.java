@@ -1,18 +1,33 @@
 package com.thoughtworks.xstream.io.xml;
 
-import com.thoughtworks.xstream.io.HierarchicalStreamDriver;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
+
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 
-import java.io.*;
-
-public class XppDriver implements HierarchicalStreamDriver {
-
+public class XppDriver extends AbstractXmlDriver {
+    
     private static boolean xppLibraryPresent;
+
+    public XppDriver() {
+        super(new XmlFriendlyReplacer());
+    }
+
+    /**
+     * @since 1.2
+     */
+    public XppDriver(XmlFriendlyReplacer replacer) {
+        super(replacer);
+    }
 
     public HierarchicalStreamReader createReader(Reader xml) {
         loadLibrary();
-        return new XppReader(xml);
+        return new XppReader(xml, xmlFriendlyReplacer());
     }
 
     public HierarchicalStreamReader createReader(InputStream in) {
@@ -32,7 +47,7 @@ public class XppDriver implements HierarchicalStreamDriver {
     }
 
     public HierarchicalStreamWriter createWriter(Writer out) {
-        return new PrettyPrintWriter(out);
+        return new PrettyPrintWriter(out, xmlFriendlyReplacer());
     }
 
     public HierarchicalStreamWriter createWriter(OutputStream out) {

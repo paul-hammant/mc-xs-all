@@ -4,7 +4,7 @@ import com.thoughtworks.xstream.io.xml.xppdom.Xpp3Dom;
 
 /**
  * @author <a href="mailto:jason@maven.org">Jason van Zyl</a>
- * @version $Id: XppDomReader.java 578 2005-04-25 20:51:45Z joe $
+ * @version $Id: XppDomReader.java 904 2006-07-28 20:36:05Z joehni $
  */
 public class XppDomReader extends AbstractDocumentReader {
 
@@ -14,8 +14,15 @@ public class XppDomReader extends AbstractDocumentReader {
         super(xpp3Dom);
     }
 
+    /**
+     * @since 1.2
+     */
+    public XppDomReader(Xpp3Dom xpp3Dom, XmlFriendlyReplacer replacer) {
+        super(xpp3Dom, replacer);
+    }
+    
     public String getNodeName() {
-        return currentElement.getName();
+        return unescapeXmlName(currentElement.getName());
     }
 
     public String getValue() {
@@ -43,7 +50,7 @@ public class XppDomReader extends AbstractDocumentReader {
     }
 
     public String getAttributeName(int index) {
-        return currentElement.getAttributeNames()[index];
+        return unescapeXmlName(currentElement.getAttributeNames()[index]);
     }
 
     protected Object getParent() {

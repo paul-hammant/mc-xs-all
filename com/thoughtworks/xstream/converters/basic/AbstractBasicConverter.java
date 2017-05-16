@@ -14,6 +14,7 @@ import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
  * fromString(String) methods for the conversion.</p>
  *
  * @author Joe Walnes
+ * @deprecated Since 1.2 use {@link com.thoughtworks.xstream.converters.basic.AbstractSingleValueConverter}
  */
 public abstract class AbstractBasicConverter implements Converter {
 

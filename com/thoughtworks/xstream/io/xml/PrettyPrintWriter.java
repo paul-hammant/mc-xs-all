@@ -15,7 +15,7 @@ import java.io.Writer;
  *
  * @author Joe Walnes
  */
-public class PrettyPrintWriter implements HierarchicalStreamWriter {
+public class PrettyPrintWriter extends AbstractXmlWriter {
 
     private final QuickWriter writer;
     private final FastStack elementStack = new FastStack(16);
@@ -25,6 +25,7 @@ public class PrettyPrintWriter implements HierarchicalStreamWriter {
     private int depth;
     private boolean readyForNewLine;
     private boolean tagIsEmpty;
+    private String newLine;
 
     private static final char[] NULL = "&#x0;".toCharArray();
     private static final char[] AMP = "&amp;".toCharArray();
@@ -35,29 +36,55 @@ public class PrettyPrintWriter implements HierarchicalStreamWriter {
     private static final char[] APOS = "&apos;".toCharArray();
     private static final char[] CLOSE = "</".toCharArray();
 
-    public PrettyPrintWriter(Writer writer, char[] lineIndenter) {
+    /**
+     * @since 1.2
+     */
+    public PrettyPrintWriter(Writer writer, char[] lineIndenter, String newLine, XmlFriendlyReplacer replacer) {
+        super(replacer);
         this.writer = new QuickWriter(writer);
         this.lineIndenter = lineIndenter;
+        this.newLine = newLine;
+    }
+
+    public PrettyPrintWriter(Writer writer, char[] lineIndenter, String newLine) {
+        this(writer, lineIndenter, newLine, new XmlFriendlyReplacer());
+    }
+
+    public PrettyPrintWriter(Writer writer, char[] lineIndenter) {
+        this(writer, lineIndenter, "\n");
+    }
+
+    public PrettyPrintWriter(Writer writer, String lineIndenter, String newLine) {
+        this(writer, lineIndenter.toCharArray(), newLine);
     }
 
     public PrettyPrintWriter(Writer writer, String lineIndenter) {
         this(writer, lineIndenter.toCharArray());
     }
 
+    public PrettyPrintWriter(Writer writer, XmlFriendlyReplacer replacer) {
+        this(writer, new char[]{' ', ' '}, "\n", replacer);
+    }
+    
     public PrettyPrintWriter(Writer writer) {
         this(writer, new char[]{' ', ' '});
     }
 
     public void startNode(String name) {
+        String escapedName = escapeXmlName(name);
         tagIsEmpty = false;
         finishTag();
         writer.write('<');
-        writer.write(name);
-        elementStack.push(name);
+        writer.write(escapedName);
+        elementStack.push(escapedName);
         tagInProgress = true;
         depth++;
         readyForNewLine = true;
         tagIsEmpty = true;
+    }
+
+    public void startNode(String name, Class clazz) {
+        startNode(name);
     }
 
     public void setValue(String text) {
@@ -70,7 +97,7 @@ public class PrettyPrintWriter implements HierarchicalStreamWriter {
 
     public void addAttribute(String key, String value) {
         writer.write(' ');
-        writer.write(key);
+        writer.write(escapeXmlName(key));
         writer.write('=');
         writer.write('\"');
         writeAttributeValue(writer, value);
@@ -149,7 +176,7 @@ public class PrettyPrintWriter implements HierarchicalStreamWriter {
     }
 
     protected void endOfLine() {
-        writer.write('\n');
+        writer.write(newLine);
         for (int i = 0; i < depth; i++) {
             writer.write(lineIndenter);
         }

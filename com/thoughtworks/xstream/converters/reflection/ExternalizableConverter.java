@@ -8,14 +8,13 @@ import com.thoughtworks.xstream.core.util.CustomObjectInputStream;
 import com.thoughtworks.xstream.core.util.CustomObjectOutputStream;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
+import com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper;
 import com.thoughtworks.xstream.mapper.Mapper;
 
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.NotActiveException;
-import java.io.ObjectInput;
 import java.io.ObjectInputValidation;
-import java.io.ObjectOutput;
 import java.util.Map;
 
 /**
@@ -45,7 +44,7 @@ public class ExternalizableConverter implements Converter {
                         writer.startNode("null");
                         writer.endNode();
                     } else {
-                        writer.startNode(mapper.serializedClass(object.getClass()));
+                        ExtendedHierarchicalStreamWriterHelper.startNode(writer, mapper.serializedClass(object.getClass()), object.getClass());
                         context.convertAnother(object);
                         writer.endNode();
                     }
@@ -67,8 +66,9 @@ public class ExternalizableConverter implements Converter {
                     throw new UnsupportedOperationException("Objects are not allowed to call ObjecOutput.close() from writeExternal()");
                 }
             };
-            ObjectOutput objectOutput = CustomObjectOutputStream.getInstance(context, callback);
+            CustomObjectOutputStream objectOutput = CustomObjectOutputStream.getInstance(context, callback);
             externalizable.writeExternal(objectOutput);
+            objectOutput.popCallback();
         } catch (IOException e) {
             throw new ConversionException("Cannot serialize " + source.getClass().getName() + " using Externalization", e);
         }
@@ -102,8 +102,9 @@ public class ExternalizableConverter implements Converter {
                     throw new UnsupportedOperationException("Objects are not allowed to call ObjectInput.close() from readExternal()");
                 }
             };
-            ObjectInput objectInput = CustomObjectInputStream.getInstance(context, callback);
+            CustomObjectInputStream objectInput = CustomObjectInputStream.getInstance(context, callback);
             externalizable.readExternal(objectInput);
+            objectInput.popCallback();
             return externalizable;
         } catch (InstantiationException e) {
             throw new ConversionException("Cannot construct " + type.getClass(), e);

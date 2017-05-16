@@ -2,8 +2,8 @@ package com.thoughtworks.xstream.io.path;
 
 import com.thoughtworks.xstream.core.util.FastStack;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Represents a path (subset of XPath) to a single node in the tree.
@@ -145,5 +145,17 @@ public class Path {
         }
 
         return new Path(result);
+    }
+    
+    public boolean isAncestor(Path child) {
+        if (child == null || child.chunks.length < chunks.length) {
+            return false;
+        }
+        for (int i = 0; i < chunks.length; i++) {
+            if (!chunks[i].equals(child.chunks[i])) {
+                return false;
+            }
+        }
+        return true;
     }
 }

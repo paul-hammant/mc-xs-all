@@ -1,30 +1,48 @@
 package com.thoughtworks.xstream.io.xml;
 
-import com.thoughtworks.xstream.io.*;
-import org.w3c.dom.Document;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
+import java.io.Writer;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.FactoryConfigurationError;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.*;
 
-public class DomDriver implements HierarchicalStreamDriver {
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
+import com.thoughtworks.xstream.io.StreamException;
+
+public class DomDriver extends AbstractXmlDriver {
+    
     private final String encoding;
     private final DocumentBuilderFactory documentBuilderFactory;
-
-    public DomDriver(String encoding) {
-        documentBuilderFactory = DocumentBuilderFactory.newInstance();
-        this.encoding = encoding;
-    }
 
     public DomDriver() {
         this("UTF-8");
     }
 
+    public DomDriver(String encoding) {
+        this(encoding, new XmlFriendlyReplacer());
+    }
+
+    /**
+     * @since 1.2
+     */
+    public DomDriver(String encoding, XmlFriendlyReplacer replacer) {
+        super(replacer);
+        documentBuilderFactory = DocumentBuilderFactory.newInstance();
+        this.encoding = encoding;
+    }
+    
     public HierarchicalStreamReader createReader(Reader xml) {
         return createReader(new InputSource(xml));
     }
@@ -55,6 +73,10 @@ public class DomDriver implements HierarchicalStreamDriver {
     }
 
     public HierarchicalStreamWriter createWriter(OutputStream out) {
-        return createWriter(new OutputStreamWriter(out));
+        try {
+			return createWriter(new OutputStreamWriter(out, this.encoding));
+		} catch (UnsupportedEncodingException e) {
+			throw new StreamException(e);
+		}
     }
 }

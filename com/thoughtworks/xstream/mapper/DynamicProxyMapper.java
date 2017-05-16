@@ -12,15 +12,29 @@ import java.lang.reflect.Proxy;
  */
 public class DynamicProxyMapper extends MapperWrapper {
 
-    private String alias = "dynamic-proxy";
+    private String alias;
 
-    public DynamicProxyMapper(ClassMapper wrapped) {
-        super(wrapped);
+    public DynamicProxyMapper(Mapper wrapped) {
+        this(wrapped, "dynamic-proxy");
     }
 
-    public DynamicProxyMapper(ClassMapper wrapped, String alias) {
+    public DynamicProxyMapper(Mapper wrapped, String alias) {
         super(wrapped);
         this.alias = alias;
+    }
+
+    /**
+     * @deprecated As of 1.2, use {@link #DynamicProxyMapper(Mapper)}
+     */
+    public DynamicProxyMapper(ClassMapper wrapped) {
+        this((Mapper)wrapped);
+    }
+
+    /**
+     * @deprecated As of 1.2, use {@link #DynamicProxyMapper(Mapper, String)}
+     */
+    public DynamicProxyMapper(ClassMapper wrapped, String alias) {
+        this((Mapper)wrapped, alias);
     }
 
     public String getAlias() {

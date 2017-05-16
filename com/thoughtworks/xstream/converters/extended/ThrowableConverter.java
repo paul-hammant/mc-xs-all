@@ -6,10 +6,6 @@ import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Converter for Throwable (and Exception) that retains stack trace, for JDK1.4 only.
  *
@@ -17,7 +13,7 @@ import java.util.List;
  * @author Joe Walnes
  */
 public class ThrowableConverter implements Converter {
-
+    
     private Converter defaultConverter;
 
     public ThrowableConverter(Converter defaultConverter) {
@@ -30,6 +26,13 @@ public class ThrowableConverter implements Converter {
 
     public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
         Throwable throwable = (Throwable) source;
+        if (throwable.getCause() == null) {
+            try {
+                throwable.initCause(null);
+            } catch (IllegalStateException e) {
+                // ignore, initCause failed, cause was already set
+            }
+        }
         throwable.getStackTrace(); // Force stackTrace field to be lazy loaded by special JVM native witchcraft (outside our control).
         defaultConverter.marshal(throwable, writer, context);
     }

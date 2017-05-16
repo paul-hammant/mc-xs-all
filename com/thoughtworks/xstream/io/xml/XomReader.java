@@ -1,6 +1,9 @@
 package com.thoughtworks.xstream.io.xml;
 
-import nu.xom.*;
+import nu.xom.Document;
+import nu.xom.Element;
+import nu.xom.Node;
+import nu.xom.Text;
 
 public class XomReader extends AbstractDocumentReader {
 
@@ -14,8 +17,22 @@ public class XomReader extends AbstractDocumentReader {
         super(document.getRootElement());
     }
 
+    /**
+     * @since 1.2
+     */
+    public XomReader(Element rootElement, XmlFriendlyReplacer replacer) {
+        super(rootElement, replacer);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public XomReader(Document document, XmlFriendlyReplacer replacer) {
+        super(document.getRootElement(), replacer);
+    }
+    
     public String getNodeName() {
-        return currentElement.getLocalName();
+        return unescapeXmlName(currentElement.getLocalName());
     }
 
     public String getValue() {
@@ -45,7 +62,7 @@ public class XomReader extends AbstractDocumentReader {
     }
 
     public String getAttributeName(int index) {
-        return currentElement.getAttribute(index).getQualifiedName();
+        return unescapeXmlName(currentElement.getAttribute(index).getQualifiedName());
     }
 
     protected int getChildCount() {

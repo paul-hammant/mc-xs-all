@@ -1,23 +1,31 @@
 package com.thoughtworks.xstream.io.xml;
 
-import com.thoughtworks.xstream.converters.ErrorWriter;
-import com.thoughtworks.xstream.core.util.FastStack;
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-import com.thoughtworks.xstream.io.AttributeNameIterator;
-
 import java.util.Iterator;
 
-public abstract class AbstractDocumentReader implements HierarchicalStreamReader {
+import com.thoughtworks.xstream.converters.ErrorWriter;
+import com.thoughtworks.xstream.core.util.FastStack;
+import com.thoughtworks.xstream.io.AttributeNameIterator;
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+
+public abstract class AbstractDocumentReader extends AbstractXmlReader {
 
     private FastStack pointers = new FastStack(16);
     private Object current;
 
     protected AbstractDocumentReader(Object rootElement) {
+        this(rootElement, new XmlFriendlyReplacer());
+    }
+
+    /**
+    * @since 1.2
+    */ 
+    protected AbstractDocumentReader(Object rootElement, XmlFriendlyReplacer replacer) {
+        super(replacer);
         this.current = rootElement;
         pointers.push(new Pointer());
         reassignCurrentElement(current);
     }
-
+    
     protected abstract void reassignCurrentElement(Object current);
     protected abstract Object getParent();
     protected abstract Object getChild(int index);
@@ -60,8 +68,15 @@ public abstract class AbstractDocumentReader implements HierarchicalStreamReader
     public void appendErrors(ErrorWriter errorWriter) {
     }
 
+    /**
+     * @deprecated As of 1.2, use {@link #getCurrent() }
+     */
     public Object peekUnderlyingNode() {
         return current;
+    }
+    
+    public Object getCurrent() {
+        return this.current;
     }
 
     public void close() {

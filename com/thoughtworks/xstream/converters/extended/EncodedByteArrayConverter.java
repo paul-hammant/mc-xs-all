@@ -19,8 +19,8 @@ import java.util.List;
  */
 public class EncodedByteArrayConverter implements Converter {
 
-    private final Base64Encoder base64 = new Base64Encoder();
-    private final ByteConverter byteConverter = new ByteConverter();
+    private static final Base64Encoder base64 = new Base64Encoder();
+    private static final ByteConverter byteConverter = new ByteConverter();
 
     public boolean canConvert(Class type) {
         return type.isArray() && type.getComponentType().equals(byte.class);
@@ -45,7 +45,8 @@ public class EncodedByteArrayConverter implements Converter {
         boolean firstIteration = true;
         while (firstIteration || reader.hasMoreChildren()) { // hangover from previous hasMoreChildren
             reader.moveDown();
-            bytes.add(byteConverter.unmarshal(reader, context));
+            //bytes.add(byteConverter.unmarshal(reader, context));
+            bytes.add(byteConverter.fromString(reader.getValue()));
             reader.moveUp();
             firstIteration = false;
         }

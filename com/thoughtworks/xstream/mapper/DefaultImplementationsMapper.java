@@ -2,8 +2,8 @@ package com.thoughtworks.xstream.mapper;
 
 import com.thoughtworks.xstream.alias.ClassMapper;
 
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -14,15 +14,24 @@ import java.util.Map;
  */
 public class DefaultImplementationsMapper extends MapperWrapper {
 
-    private final Map typeToImpl = Collections.synchronizedMap(new HashMap());
-    private final Map implToType = Collections.synchronizedMap(new HashMap());
+    private final Map typeToImpl = new HashMap();
+    private transient Map implToType = new HashMap();
 
-    public DefaultImplementationsMapper(ClassMapper wrapped) {
+    public DefaultImplementationsMapper(Mapper wrapped) {
         super(wrapped);
         addDefaults();
     }
 
+    /**
+     * @deprecated As of 1.2, use {@link #DefaultImplementationsMapper(Mapper)}
+     */
+    public DefaultImplementationsMapper(ClassMapper wrapped) {
+        this((Mapper)wrapped);
+    }
+
     protected void addDefaults() {
+        // null handling
+        addDefaultImplementation(null, Mapper.Null.class);
         // register primitive types
         addDefaultImplementation(Boolean.class, boolean.class);
         addDefaultImplementation(Character.class, char.class);
@@ -45,8 +54,20 @@ public class DefaultImplementationsMapper extends MapperWrapper {
     }
 
     public Class defaultImplementationOf(Class type) {
-        Class result = (Class) typeToImpl.get(type);
-        return result == null ? super.defaultImplementationOf(type) : result;
+        if (typeToImpl.containsKey(type)) {
+            return (Class)typeToImpl.get(type);
+        } else {
+            return super.defaultImplementationOf(type);
+        }
+    }
+    
+    private Object readResolve() {
+        implToType = new HashMap();
+        for (final Iterator iter = typeToImpl.keySet().iterator(); iter.hasNext();) {
+            final Object type = iter.next();
+            implToType.put(typeToImpl.get(type), type);
+        }
+        return this;
     }
 
 }

@@ -2,9 +2,9 @@ package com.thoughtworks.xstream.mapper;
 
 import com.thoughtworks.xstream.alias.ClassMapper;
 
-import java.util.Map;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Mapper that caches which names map to which classes. Prevents repetitive searching and class loading.
@@ -13,10 +13,17 @@ import java.util.HashMap;
  */
 public class CachingMapper extends MapperWrapper {
 
-    private final Map cache = Collections.synchronizedMap(new HashMap());
+    private transient Map cache = Collections.synchronizedMap(new HashMap());
 
-    public CachingMapper(ClassMapper wrapped) {
+    public CachingMapper(Mapper wrapped) {
         super(wrapped);
+    }
+
+    /**
+     * @deprecated As of 1.2, use {@link #CachingMapper(Mapper)}
+     */
+    public CachingMapper(ClassMapper wrapped) {
+        this((Mapper)wrapped);
     }
 
     public Class realClass(String elementName) {
@@ -28,6 +35,11 @@ public class CachingMapper extends MapperWrapper {
             cache.put(elementName, result);
             return result;
         }
+    }
+    
+    private Object readResolve() {
+        cache = Collections.synchronizedMap(new HashMap());
+        return this;
     }
 
 }

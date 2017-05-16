@@ -1,12 +1,12 @@
 package com.thoughtworks.xstream.converters.collections;
 
-import com.thoughtworks.xstream.alias.ClassMapper;
 import com.thoughtworks.xstream.converters.ConversionException;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
+import com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper;
 import com.thoughtworks.xstream.mapper.Mapper;
 
 /**
@@ -23,27 +23,7 @@ public abstract class AbstractCollectionConverter implements Converter {
 
     private final Mapper mapper;
 
-    /**
-     * @deprecated As of 1.1.1, use {@link #mapper()}
-     */
-    protected ClassMapper classMapper;
-
-    /**
-     * @deprecated As of 1.1.1, use {@link #mapper()} 
-     */
-    protected String classAttributeIdentifier;
-
     public abstract boolean canConvert(Class type);
-
-    /**
-     * @deprecated As of 1.1.1, use other constructor.
-     */
-    public AbstractCollectionConverter(ClassMapper classMapper, String classAttributeIdentifier) {
-        // TODO: this classAttributeIdentifer should be optional - most uses of XStream don't need it.
-        this.classMapper = classMapper;
-        this.classAttributeIdentifier = classAttributeIdentifier;
-        this.mapper = classMapper;
-    }
 
     public AbstractCollectionConverter(Mapper mapper) {
         this.mapper = mapper;
@@ -57,14 +37,18 @@ public abstract class AbstractCollectionConverter implements Converter {
 
     public abstract Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context);
 
+
+
     protected void writeItem(Object item, MarshallingContext context, HierarchicalStreamWriter writer) {
         // PUBLISHED API METHOD! If changing signature, ensure backwards compatability.
         if (item == null) {
             // todo: this is duplicated in TreeMarshaller.start()
-            writer.startNode(mapper().serializedClass(ClassMapper.Null.class));
+            String name = mapper().serializedClass(null);
+            writer.startNode(name);
             writer.endNode();
         } else {
-            writer.startNode(mapper().serializedClass(item.getClass()));
+            String name = mapper().serializedClass(item.getClass());
+            ExtendedHierarchicalStreamWriterHelper.startNode(writer, name, item.getClass());
             context.convertAnother(item);
             writer.endNode();
         }
@@ -72,7 +56,7 @@ public abstract class AbstractCollectionConverter implements Converter {
 
     protected Object readItem(HierarchicalStreamReader reader, UnmarshallingContext context, Object current) {
         // PUBLISHED API METHOD! If changing signature, ensure backwards compatability.
-        String classAttribute = reader.getAttribute(mapper().attributeForImplementationClass());
+        String classAttribute = reader.getAttribute(mapper().aliasForAttribute("class"));
         Class type;
         if (classAttribute == null) {
             type = mapper().realClass(reader.getNodeName());

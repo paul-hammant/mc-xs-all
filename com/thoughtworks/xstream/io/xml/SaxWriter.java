@@ -3,6 +3,7 @@ package com.thoughtworks.xstream.io.xml;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.io.StreamException;
+
 import org.xml.sax.ContentHandler;
 import org.xml.sax.DTDHandler;
 import org.xml.sax.EntityResolver;
@@ -47,7 +48,7 @@ import java.util.Map;
  *
  * @author Laurent Bihanic
  */
-public final class SaxWriter implements HierarchicalStreamWriter, XMLReader {
+public final class SaxWriter extends AbstractXmlWriter implements XMLReader {
     /**
      * The {@link #setProperty SAX property} to configure the XStream
      * facade to be used for object serialization.  If the property
@@ -566,7 +567,7 @@ public final class SaxWriter implements HierarchicalStreamWriter, XMLReader {
             } else if (includeEnclosingDocument) {
                 this.startDocument(false);
             }
-            this.elementStack.add(0, name);
+            this.elementStack.add(0, escapeXmlName(name));
 
             this.startTagInProgress = true;
             this.depth++;
@@ -575,9 +576,14 @@ public final class SaxWriter implements HierarchicalStreamWriter, XMLReader {
         }
     }
 
+    public void startNode(String name, Class clazz) {
+        startNode(name);
+    }
+
     public void addAttribute(String name, String value) {
         if (this.startTagInProgress) {
-            this.attributeList.addAttribute("", name, name, "CDATA", value);
+            String escapedName = escapeXmlName(name);
+            this.attributeList.addAttribute("", escapedName, escapedName, "CDATA", value);
         } else {
             throw new StreamException(new IllegalStateException("No startElement being processed"));
         }

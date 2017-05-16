@@ -1,13 +1,10 @@
 package com.thoughtworks.xstream.converters.extended;
 
-import com.thoughtworks.xstream.converters.MarshallingContext;
-import com.thoughtworks.xstream.converters.ConversionException;
-import com.thoughtworks.xstream.converters.basic.AbstractBasicConverter;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-
-import java.lang.reflect.Field;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.thoughtworks.xstream.converters.ConversionException;
+import com.thoughtworks.xstream.converters.basic.AbstractSingleValueConverter;
 
 /**
  * Converter for StackTraceElement (the lines of a stack trace) - JDK 1.4+ only.
@@ -15,7 +12,7 @@ import java.util.regex.Pattern;
  * @author <a href="mailto:boxley@thoughtworks.com">B. K. Oxley (binkley)</a>
  * @author Joe Walnes
  */
-public class StackTraceElementConverter extends AbstractBasicConverter {
+public class StackTraceElementConverter extends AbstractSingleValueConverter {
 
     // Regular expression to parse a line of a stack trace. Returns 4 groups.
     //
@@ -24,29 +21,34 @@ public class StackTraceElementConverter extends AbstractBasicConverter {
     // (Note group 4 is optional is optional and only present if a colon char exists.)
 
     private static final Pattern PATTERN = Pattern.compile("^(.+)\\.([^\\(]+)\\(([^:]*)(:(\\d+))?\\)$");
-
-    private final StackTraceElementFactory factory = new StackTraceElementFactory();
+    private static final StackTraceElementFactory FACTORY = new StackTraceElementFactory();
 
     public boolean canConvert(Class type) {
         return StackTraceElement.class.equals(type);
     }
+    
+    public String toString(Object obj) {
+        String s = super.toString(obj);
+        // JRockit adds ":???" for invalid line number
+        return s.replaceFirst(":\\?\\?\\?", "");
+    }
 
-    protected Object fromString(String str) {
+    public Object fromString(String str) {
         Matcher matcher = PATTERN.matcher(str);
         if (matcher.matches()) {
             String declaringClass = matcher.group(1);
             String methodName = matcher.group(2);
             String fileName = matcher.group(3);
             if (fileName.equals("Unknown Source")) {
-                return factory.unknownSourceElement(declaringClass, methodName);
+                return FACTORY.unknownSourceElement(declaringClass, methodName);
             } else if (fileName.equals("Native Method")) {
-                return factory.nativeMethodElement(declaringClass, methodName);
+                return FACTORY.nativeMethodElement(declaringClass, methodName);
             } else {
                 if (matcher.group(4) != null) {
                     int lineNumber = Integer.parseInt(matcher.group(5));
-                    return factory.element(declaringClass, methodName, fileName, lineNumber);
+                    return FACTORY.element(declaringClass, methodName, fileName, lineNumber);
                 } else {
-                    return factory.element(declaringClass, methodName, fileName);
+                    return FACTORY.element(declaringClass, methodName, fileName);
                 }
             }
         } else {

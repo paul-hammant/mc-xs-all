@@ -2,19 +2,25 @@ package com.thoughtworks.xstream.mapper;
 
 import com.thoughtworks.xstream.alias.ClassMapper;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 public class ImplicitCollectionMapper extends MapperWrapper {
 
-    public ImplicitCollectionMapper(ClassMapper wrapped) {
+    public ImplicitCollectionMapper(Mapper wrapped) {
         super(wrapped);
     }
 
+    /**
+     * @deprecated As of 1.2, use {@link #ImplicitCollectionMapper(Mapper)}
+     */
+    public ImplicitCollectionMapper(ClassMapper wrapped) {
+        this((Mapper)wrapped);
+    }
+
     // { definedIn (Class) -> (ImplicitCollectionMapperForClass) }
-    private Map classNameToMapper = Collections.synchronizedMap(new HashMap());
+    private final Map classNameToMapper = new HashMap();
 
     private ImplicitCollectionMapperForClass getMapper(Class definedIn) {
         while (definedIn != null) {
@@ -30,7 +36,7 @@ public class ImplicitCollectionMapper extends MapperWrapper {
     private ImplicitCollectionMapperForClass getOrCreateMapper(Class definedIn) {
         ImplicitCollectionMapperForClass mapper = getMapper(definedIn);
         if (mapper == null) {
-            mapper = new ImplicitCollectionMapperForClass(definedIn);
+            mapper = new ImplicitCollectionMapperForClass();
             classNameToMapper.put(definedIn, mapper);
         }
         return mapper;
@@ -73,14 +79,9 @@ public class ImplicitCollectionMapper extends MapperWrapper {
     }
 
     private static class ImplicitCollectionMapperForClass {
-        //private Class definedIn;
         private Map namedItemTypeToDef = new HashMap(); // { (NamedItemType) -> (ImplicitCollectionDefImpl) }
         private Map itemFieldNameToDef = new HashMap(); // { itemFieldName (String) -> (ImplicitCollectionDefImpl) }
         private Map fieldNameToDef = new HashMap(); // { fieldName (String) -> (ImplicitCollectionDefImpl) }
-
-        public ImplicitCollectionMapperForClass(Class definedIn) {
-            //this.definedIn = definedIn;
-        }
 
         public String getFieldNameForItemTypeAndName(Class itemType, String itemFieldName) {
             ImplicitCollectionMappingImpl unnamed = null;

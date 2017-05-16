@@ -10,8 +10,6 @@ import org.w3c.dom.Text;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-
 public class DomReader extends AbstractDocumentReader {
 
     private Element currentElement;
@@ -19,16 +17,30 @@ public class DomReader extends AbstractDocumentReader {
     private List childElements;
 
     public DomReader(Element rootElement) {
-        super(rootElement);
-        textBuffer = new StringBuffer();
+        this(rootElement, new XmlFriendlyReplacer());
     }
 
     public DomReader(Document document) {
         this(document.getDocumentElement());
     }
 
+    /**
+     * @since 1.2
+     */
+    public DomReader(Element rootElement, XmlFriendlyReplacer replacer) {
+        super(rootElement, replacer);
+        textBuffer = new StringBuffer();
+    }
+
+    /**
+     * @since 1.2
+     */
+    public DomReader(Document document, XmlFriendlyReplacer replacer) {
+        this(document.getDocumentElement(), replacer);
+    }
+    
     public String getNodeName() {
-        return currentElement.getTagName();
+        return unescapeXmlName(currentElement.getTagName());
     }
 
     public String getValue() {
@@ -59,7 +71,7 @@ public class DomReader extends AbstractDocumentReader {
     }
 
     public String getAttributeName(int index) {
-        return ((Attr) currentElement.getAttributes().item(index)).getName();
+        return unescapeXmlName(((Attr) currentElement.getAttributes().item(index)).getName());
     }
 
     protected Object getParent() {

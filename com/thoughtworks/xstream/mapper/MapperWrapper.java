@@ -1,13 +1,21 @@
 package com.thoughtworks.xstream.mapper;
 
 import com.thoughtworks.xstream.alias.ClassMapper;
+import com.thoughtworks.xstream.converters.SingleValueConverter;
 
-public abstract class MapperWrapper implements ClassMapper {
+public abstract class MapperWrapper implements Mapper {
 
-    private final ClassMapper wrapped;
+    private final Mapper wrapped;
 
-    public MapperWrapper(ClassMapper wrapped) {
+    public MapperWrapper(Mapper wrapped) {
         this.wrapped = wrapped;
+    }
+
+    /**
+     * @deprecated As of 1.2, use {@link #MapperWrapper(Mapper)}
+     */
+    public MapperWrapper(ClassMapper wrapped) {
+        this((Mapper)wrapped);
     }
 
     public String serializedClass(Class type) {
@@ -24,14 +32,6 @@ public abstract class MapperWrapper implements ClassMapper {
 
     public String realMember(Class type, String serialized) {
         return wrapped.realMember(type, serialized);
-    }
-
-    public String mapNameFromXML(String xmlName) {
-        return wrapped.mapNameFromXML(xmlName);
-    }
-
-    public String mapNameToXML(String javaName) {
-        return wrapped.mapNameToXML(javaName);
     }
 
     public boolean isImmutableValueType(Class type) {
@@ -58,6 +58,14 @@ public abstract class MapperWrapper implements ClassMapper {
         return wrapped.attributeForEnumType();
     }
 
+    public String aliasForAttribute(String attribute) {
+        return wrapped.aliasForAttribute(attribute);
+    }
+
+    public String attributeForAlias(String alias) {
+        return wrapped.attributeForAlias(alias);
+    }
+
     public String getFieldNameForItemTypeAndName(Class definedIn, Class itemType, String itemFieldName) {
         return wrapped.getFieldNameForItemTypeAndName(definedIn, itemType, itemFieldName);
     }
@@ -74,54 +82,20 @@ public abstract class MapperWrapper implements ClassMapper {
         return wrapped.shouldSerializeMember(definedIn, fieldName);
     }
 
-    /**
-     * @deprecated As of 1.1.1, use {@link #defaultImplementationOf(Class)}
-     */
-    public Class lookupDefaultType(Class baseType) {
-        return defaultImplementationOf(baseType);
+    public SingleValueConverter getConverterFromItemType(String fieldName, Class type) {
+        return wrapped.getConverterFromItemType(fieldName, type);
     }
 
-    public String lookupName(Class type) {
-        return serializedClass(type);
+    public SingleValueConverter getConverterFromItemType(Class type) {
+        return wrapped.getConverterFromItemType(type);
     }
 
-    public Class lookupType(String elementName) {
-        return realClass(elementName);
+    public SingleValueConverter getConverterFromAttribute(String name) {
+        return wrapped.getConverterFromAttribute(name);
     }
 
-    /**
-     * @deprecated As of 1.1.1, use {@link com.thoughtworks.xstream.mapper.ClassAliasingMapper#addClassAlias(String, Class)} for creating an alias and
-     *             {@link DefaultImplementationsMapper#addDefaultImplementation(Class, Class)} for specifiny a
-     *             default implementation.
-     */
-    public void alias(String elementName, Class type, Class defaultImplementation) {
-        ClassAliasingMapper classAliasingMapper = (ClassAliasingMapper) findWrapped(ClassAliasingMapper.class);
-        if (classAliasingMapper == null) {
-            throw new UnsupportedOperationException("ClassMapper.alias() longer supported. Use ClassAliasingMapper.alias() instead.");
-        } else {
-            classAliasingMapper.addClassAlias(elementName, type);
-        }
-        if (defaultImplementation != null && defaultImplementation != type) {
-            DefaultImplementationsMapper defaultImplementationsMapper = (DefaultImplementationsMapper) findWrapped(DefaultImplementationsMapper.class);
-            if (defaultImplementationsMapper == null) {
-                throw new UnsupportedOperationException("ClassMapper.alias() longer supported. Use DefaultImplementatoinsMapper.add() instead.");
-            } else {
-                defaultImplementationsMapper.addDefaultImplementation(defaultImplementation, type);
-            }
-        }
+    public Mapper lookupMapperOfType(Class type) {
+        return type.isAssignableFrom(getClass()) ? this : wrapped.lookupMapperOfType(type);
     }
 
-    private ClassMapper findWrapped(Class typeOfMapper) {
-        ClassMapper current = this;
-        while (true) {
-            if (current.getClass().isAssignableFrom(typeOfMapper)) {
-                return current;
-            } else if (current instanceof MapperWrapper) {
-                MapperWrapper wrapper = (MapperWrapper) current;
-                current = wrapper.wrapped;
-            } else {
-                return null;
-            }
-        }
-    }
 }

@@ -1,6 +1,12 @@
 package com.thoughtworks.xstream.mapper;
 
+import com.thoughtworks.xstream.converters.SingleValueConverter;
+
 public interface Mapper {
+    /**
+     * Place holder type used for null values.
+     */
+    class Null {}
 
     /**
      * How a class name should be represented in its serialized form.
@@ -30,13 +36,43 @@ public interface Mapper {
 
     Class defaultImplementationOf(Class type);
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     String attributeForImplementationClass();
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     String attributeForClassDefiningField();
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     String attributeForReadResolveField();
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     String attributeForEnumType();
+
+    /**
+     * Get the alias for an attrbute's name.
+     * 
+     * @param attribute the attribute
+     * @return the alias
+     * @since 1.2
+     */
+    String aliasForAttribute(String attribute);
+
+    /**
+     * Get the attribut's name for an alias.
+     * 
+     * @param alias the alias
+     * @return the attribute's name
+     * @since 1.2
+     */
+    String attributeForAlias(String alias);
 
     /**
      * Get the name of the field that acts as the default collection for an object, or return null if there is none.
@@ -54,7 +90,7 @@ public interface Mapper {
     /**
      * Determine whether a specific member should be serialized.
      *
-     * @since 1.2
+     * @since 1.1.3
      */
     boolean shouldSerializeMember(Class definedIn, String fieldName);
 
@@ -64,4 +100,11 @@ public interface Mapper {
         Class getItemType();
     }
 
+    SingleValueConverter getConverterFromItemType(String fieldName, Class type);
+
+    SingleValueConverter getConverterFromItemType(Class type);
+
+    SingleValueConverter getConverterFromAttribute(String name);
+    
+    Mapper lookupMapperOfType(Class type);
 }

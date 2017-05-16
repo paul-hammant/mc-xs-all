@@ -1,8 +1,5 @@
 package com.thoughtworks.xstream.core.util;
 
-import com.thoughtworks.xstream.converters.ConversionException;
-import com.thoughtworks.xstream.converters.DataHolder;
-
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.NotActiveException;
@@ -11,9 +8,12 @@ import java.io.ObjectInputValidation;
 import java.io.ObjectStreamClass;
 import java.util.Map;
 
+import com.thoughtworks.xstream.converters.ConversionException;
+import com.thoughtworks.xstream.converters.DataHolder;
+
 public class CustomObjectInputStream extends ObjectInputStream {
 
-    private StreamCallback callback;
+    private FastStack callbacks = new FastStack(1);
 
     private static final String DATA_HOLDER_KEY = CustomObjectInputStream.class.getName();
 
@@ -32,7 +32,7 @@ public class CustomObjectInputStream extends ObjectInputStream {
                 result = new CustomObjectInputStream(callback);
                 whereFrom.put(DATA_HOLDER_KEY, result);
             } else {
-                result.setCallback(callback);
+                result.pushCallback(callback);
             }
             return result;
         } catch (IOException e) {
@@ -48,58 +48,66 @@ public class CustomObjectInputStream extends ObjectInputStream {
      */
     public CustomObjectInputStream(StreamCallback callback) throws IOException, SecurityException {
         super();
-        this.callback = callback;
+        this.callbacks.push(callback);
     }
 
     /**
      * Allows the CustomObjectInputStream (which is expensive to create) to be reused.
      */
-    public void setCallback(StreamCallback callback) {
-        this.callback = callback;
+    public void pushCallback(StreamCallback callback) {
+        this.callbacks.push(callback);
+    }
+    
+    public StreamCallback popCallback(){
+        return (StreamCallback) this.callbacks.pop();
+    }
+    
+    public StreamCallback peekCallback(){
+        return (StreamCallback) this.callbacks.peek();
+    }
+    
+    public void defaultReadObject() throws IOException {
+        peekCallback().defaultReadObject();
     }
 
-    public void defaultReadObject() throws IOException, ClassNotFoundException {
-        callback.defaultReadObject();
-    }
-
-    protected Object readObjectOverride() throws IOException, ClassNotFoundException {
-        return callback.readFromStream();
+    protected Object readObjectOverride() throws IOException {
+        return peekCallback().readFromStream();
     }
 
     public boolean readBoolean() throws IOException {
-        return ((Boolean)callback.readFromStream()).booleanValue();
+        return ((Boolean)peekCallback().readFromStream()).booleanValue();
     }
 
     public byte readByte() throws IOException {
-        return ((Byte)callback.readFromStream()).byteValue();
+        return ((Byte)peekCallback().readFromStream()).byteValue();
     }
 
     public int readInt() throws IOException {
-        return ((Integer)callback.readFromStream()).intValue();
+        return ((Integer)peekCallback().readFromStream()).intValue();
     }
 
     public char readChar() throws IOException {
-        return ((Character)callback.readFromStream()).charValue();
+        return ((Character)peekCallback().readFromStream()).charValue();
     }
 
     public float readFloat() throws IOException {
-        return ((Float)callback.readFromStream()).floatValue();
+        return ((Float)peekCallback().readFromStream()).floatValue();
     }
 
     public double readDouble() throws IOException {
-        return ((Double)callback.readFromStream()).doubleValue();
+        return ((Double)peekCallback().readFromStream()).doubleValue();
     }
 
     public long readLong() throws IOException {
-        return ((Long)callback.readFromStream()).longValue();
+        return ((Long)peekCallback().readFromStream()).longValue();
     }
 
     public short readShort() throws IOException {
-        return ((Short)callback.readFromStream()).shortValue();
+        return ((Short)peekCallback().readFromStream()).shortValue();
     }
 
     public String readUTF() throws IOException {
-        return (String) callback.readFromStream();
+        return (String)peekCallback().readFromStream();
     }
 
     public void readFully(byte[] buf) throws IOException {
@@ -107,12 +115,12 @@ public class CustomObjectInputStream extends ObjectInputStream {
     }
 
     public void readFully(byte[] buf, int off, int len) throws IOException {
-        byte[] b = (byte[])callback.readFromStream();
+        byte[] b = (byte[])peekCallback().readFromStream();
         System.arraycopy(b, 0, buf, off, len);
     }
 
-    public GetField readFields() throws IOException, ClassNotFoundException {
-        return new CustomGetField(callback.readFieldsFromStream());
+    public GetField readFields() throws IOException {
+        return new CustomGetField(peekCallback().readFieldsFromStream());
     }
 
     private class CustomGetField extends GetField {
@@ -131,95 +139,95 @@ public class CustomObjectInputStream extends ObjectInputStream {
             return fields.get(name);
         }
 
-        public boolean defaulted(String name) throws IOException {
+        public boolean defaulted(String name) {
             return !fields.containsKey(name);
         }
 
-        public byte get(String name, byte val) throws IOException {
+        public byte get(String name, byte val) {
             return defaulted(name) ? val : ((Byte)get(name)).byteValue();
         }
 
-        public char get(String name, char val) throws IOException {
+        public char get(String name, char val) {
             return defaulted(name) ? val : ((Character)get(name)).charValue();
         }
 
-        public double get(String name, double val) throws IOException {
+        public double get(String name, double val) {
             return defaulted(name) ? val : ((Double)get(name)).doubleValue();
         }
 
-        public float get(String name, float val) throws IOException {
+        public float get(String name, float val) {
             return defaulted(name) ? val : ((Float)get(name)).floatValue();
         }
 
-        public int get(String name, int val) throws IOException {
+        public int get(String name, int val) {
             return defaulted(name) ? val : ((Integer)get(name)).intValue();
         }
 
-        public long get(String name, long val) throws IOException {
+        public long get(String name, long val) {
             return defaulted(name) ? val : ((Long)get(name)).longValue();
         }
 
-        public short get(String name, short val) throws IOException {
+        public short get(String name, short val) {
             return defaulted(name) ? val : ((Short)get(name)).shortValue();
         }
 
-        public boolean get(String name, boolean val) throws IOException {
+        public boolean get(String name, boolean val) {
             return defaulted(name) ? val : ((Boolean)get(name)).booleanValue();
         }
 
-        public Object get(String name, Object val) throws IOException {
+        public Object get(String name, Object val) {
             return defaulted(name) ? val : get(name);
         }
 
     }
 
     public void registerValidation(ObjectInputValidation validation, int priority) throws NotActiveException, InvalidObjectException {
-        callback.registerValidation(validation, priority);
+        peekCallback().registerValidation(validation, priority);
+    }
+
+    public void close() throws IOException {
+        peekCallback().close();
     }
 
     /****** Unsupported methods ******/
 
-    public int available() throws IOException {
+    public int available() {
         throw new UnsupportedOperationException();
     }
 
-    public void close() throws IOException {
-        callback.close();
-    }
-
-    public int readUnsignedByte() throws IOException {
+    public int readUnsignedByte() {
         throw new UnsupportedOperationException();
     }
 
-    public String readLine() throws IOException {
+    public String readLine() {
         throw new UnsupportedOperationException();
     }
 
-    public Object readUnshared() throws IOException, ClassNotFoundException {
+    public Object readUnshared() {
         throw new UnsupportedOperationException();
     }
 
-    public int readUnsignedShort() throws IOException {
+    public int readUnsignedShort() {
         throw new UnsupportedOperationException();
     }
 
-    public int read() throws IOException {
+    public int read() {
         throw new UnsupportedOperationException();
     }
 
-    public int read(byte[] buf, int off, int len) throws IOException {
+    public int read(byte[] buf, int off, int len) {
         throw new UnsupportedOperationException();
     }
 
-    public int skipBytes(int len) throws IOException {
+    public int skipBytes(int len) {
         throw new UnsupportedOperationException();
     }
 
-    public int read(byte b[]) throws IOException {
+    public int read(byte b[]) {
         throw new UnsupportedOperationException();
     }
 
-    public long skip(long n) throws IOException {
+    public long skip(long n) {
         throw new UnsupportedOperationException();
     }
 
@@ -227,7 +235,7 @@ public class CustomObjectInputStream extends ObjectInputStream {
         throw new UnsupportedOperationException();
     }
 
-    public void reset() throws IOException {
+    public void reset() {
         throw new UnsupportedOperationException();
     }
 

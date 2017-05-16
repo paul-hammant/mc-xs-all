@@ -1,6 +1,5 @@
 package com.thoughtworks.xstream.converters.collections;
 
-import com.thoughtworks.xstream.alias.ClassMapper;
 import com.thoughtworks.xstream.converters.MarshallingContext;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.core.JVM;
@@ -16,20 +15,15 @@ import java.util.Map;
 /**
  * Converts a java.util.Map to XML, specifying an 'entry'
  * element with 'key' and 'value' children.
- * <p/>
+ * <p>Note: 'key' and 'value' is not the name of the generated tag. The
+ * children are serialized as normal elements and the implementation expects
+ * them in the order 'key'/'value'.</p>
  * <p>Supports java.util.HashMap, java.util.Hashtable and
  * java.util.LinkedHashMap.</p>
  *
  * @author Joe Walnes
  */
 public class MapConverter extends AbstractCollectionConverter {
-
-    /**
-     * @deprecated As of 1.1.1, use other constructor.
-     */
-    public MapConverter(ClassMapper classMapper, String classAttributeIdentifier) {
-        super(classMapper, classAttributeIdentifier);
-    }
 
     public MapConverter(Mapper mapper) {
         super(mapper);

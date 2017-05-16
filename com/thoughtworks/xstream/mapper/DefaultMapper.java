@@ -1,7 +1,7 @@
 package com.thoughtworks.xstream.mapper;
 
-import com.thoughtworks.xstream.alias.CannotResolveClassException;
-import com.thoughtworks.xstream.alias.ClassMapper;
+import com.thoughtworks.xstream.converters.SingleValueConverter;
+
 
 /**
  * Default mapper implementation with 'vanilla' functionality. To build up the functionality required, wrap this mapper
@@ -9,19 +9,33 @@ import com.thoughtworks.xstream.alias.ClassMapper;
  *
  * @author Joe Walnes
  */
-public class DefaultMapper extends MapperWrapper {
+public class DefaultMapper implements Mapper {
 
     private final ClassLoader classLoader;
-    private final String classAttributeIdentifier;
+    /**
+     * @deprecated since 1.2, no necessity for field anymore.
+     */
+    private transient String classAttributeIdentifier;
 
     public DefaultMapper(ClassLoader classLoader) {
-        this(classLoader, "class");
+        this.classLoader = classLoader;
+        this.classAttributeIdentifier = "class";
     }
 
+    /**
+     * @deprecated since 1.2, use XStream.aliasAttrbute() for a different attribute name.
+     */
     public DefaultMapper(ClassLoader classLoader, String classAttributeIdentifier) {
-        super(null);
-        this.classLoader = classLoader;
+        this(classLoader);
         this.classAttributeIdentifier = classAttributeIdentifier == null ? "class" : classAttributeIdentifier;
+    }
+
+    /**
+     * @deprecated since 1.2, no necessity for method anymore.
+     */
+    private Object readResolve() {
+        classAttributeIdentifier = "class";
+        return this;
     }
 
     public String serializedClass(Class type) {
@@ -36,28 +50,44 @@ public class DefaultMapper extends MapperWrapper {
         }
     }
 
-    public Class lookupDefaultType(Class baseType) {
-        return baseType;
-    }
-
     public Class defaultImplementationOf(Class type) {
         return type;
     }
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     public String attributeForClassDefiningField() {
         return "defined-in";
     }
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     public String attributeForReadResolveField() {
         return "resolves-to";
     }
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     public String attributeForEnumType() {
         return "enum-type";
     }
 
+    /**
+     * @deprecated since 1.2, use aliasForAttribute instead.
+     */
     public String attributeForImplementationClass() {
         return classAttributeIdentifier;
+    }
+
+    public String aliasForAttribute(String attribute) {
+        return attribute;
+    }
+
+    public String attributeForAlias(String alias) {
+        return alias;
     }
 
     public boolean isImmutableValueType(Class type) {
@@ -96,15 +126,19 @@ public class DefaultMapper extends MapperWrapper {
         return serialized;
     }
 
-    public String mapNameFromXML(String xmlName) {
-        return xmlName;
+    public SingleValueConverter getConverterFromAttribute(String name) {
+        return null;
     }
 
-    public String mapNameToXML(String javaName) {
-        return javaName;
+    public SingleValueConverter getConverterFromItemType(String fieldName, Class type) {
+        return null;
     }
 
-    public void alias(String elementName, Class type, Class defaultImplementation) {
+    public SingleValueConverter getConverterFromItemType(Class type) {
+        return null;
     }
 
+    public Mapper lookupMapperOfType(Class type) {
+        return null;
+    }
 }

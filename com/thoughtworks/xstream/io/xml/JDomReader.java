@@ -1,9 +1,8 @@
 package com.thoughtworks.xstream.io.xml;
 
+import org.jdom.Attribute;
 import org.jdom.Document;
 import org.jdom.Element;
-import org.jdom.Parent;
-import org.jdom.Attribute;
 
 /**
  * @author Laurent Bihanic
@@ -20,6 +19,20 @@ public class JDomReader extends AbstractDocumentReader {
         super(document.getRootElement());
     }
 
+    /**
+     * @since 1.2
+     */
+    public JDomReader(Element root, XmlFriendlyReplacer replacer) {
+        super(root, replacer);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public JDomReader(Document document, XmlFriendlyReplacer replacer) {
+        super(document.getRootElement(), replacer);
+    }
+    
     protected void reassignCurrentElement(Object current) {
         currentElement = (Element) current;
     }
@@ -45,7 +58,7 @@ public class JDomReader extends AbstractDocumentReader {
     }
 
     public String getNodeName() {
-        return currentElement.getName();
+        return unescapeXmlName(currentElement.getName());
     }
 
     public String getValue() {
@@ -65,7 +78,8 @@ public class JDomReader extends AbstractDocumentReader {
     }
 
     public String getAttributeName(int index) {
-        return ((Attribute) currentElement.getAttributes().get(index)).getQualifiedName();
+        return unescapeXmlName(((Attribute) currentElement.getAttributes().get(index)).getQualifiedName());
     }
+
 }
 

@@ -9,17 +9,17 @@ import java.util.Date;
  * http://www.iso.ch/iso/en/CatalogueDetailPage.CatalogueDetail?CSNUMBER=26780
  * 
  * @author J&ouml;rg Schaible
- * @since 1.2
+ * @since 1.1.3
  */
 public class ISO8601SqlTimestampConverter extends ISO8601DateConverter {
 
-    final static String PADDING = "000000000";
+    private final static String PADDING = "000000000";
 
     public boolean canConvert(Class type) {
         return type.equals(Timestamp.class);
     }
 
-    protected Object fromString(String str) {
+    public Object fromString(String str) {
         final int idxFraction = str.lastIndexOf('.');
         int nanos = 0;
         if (idxFraction > 0) {
@@ -35,7 +35,7 @@ public class ISO8601SqlTimestampConverter extends ISO8601DateConverter {
         return timestamp;
     }
 
-    protected String toString(Object obj) {
+    public String toString(Object obj) {
         final Timestamp timestamp = (Timestamp)obj;
         String str = super.toString(new Date((timestamp.getTime() / 1000) * 1000));
         final String nanos = String.valueOf(timestamp.getNanos());
