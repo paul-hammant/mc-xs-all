@@ -1,13 +1,13 @@
 Manifest-Version: 1.0
-Archiver-Version: Plexus Archiver
-Created-By: Apache Maven
-Built-By: joehni
-Build-Jdk: 1.7.0_51
-Specification-Title: XStream Core
-Specification-Vendor: XStream
 Implementation-Title: XStream Core
-Implementation-Version: 1.4.7
+Implementation-Version: 1.4.8
+Archiver-Version: Plexus Archiver
+Built-By: joehni
+Specification-Vendor: XStream
+Specification-Title: XStream Core
 Implementation-Vendor-Id: com.thoughtworks.xstream
-Implementation-Vendor: XStream
+Created-By: Apache Maven 3.2.5
+Build-Jdk: 1.8.0_31
 Specification-Version: 1.4
+Implementation-Vendor: XStream
 
