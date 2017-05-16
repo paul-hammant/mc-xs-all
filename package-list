@@ -18,3 +18,4 @@ com.thoughtworks.xstream.io.xml
 com.thoughtworks.xstream.io.xml.xppdom
 com.thoughtworks.xstream.mapper
 com.thoughtworks.xstream.persistence
+com.thoughtworks.xstream.security
