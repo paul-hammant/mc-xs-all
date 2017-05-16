@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004, 2005, 2006 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008, 2010, 2011 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2010, 2011, 2012 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -131,7 +131,9 @@ public class SerializableConverter extends AbstractReflectionConverter {
                                 + " may not write a field named '" + name + "'");
                     }
                     if (value != null) {
-                        ExtendedHierarchicalStreamWriterHelper.startNode(writer, mapper.serializedMember(source.getClass(), name), field.getType());
+                        ExtendedHierarchicalStreamWriterHelper.startNode(
+                            writer, mapper.serializedMember(source.getClass(), name),
+                            value.getClass());
                         if (field.getType() != value.getClass() && !field.getType().isPrimitive()) {
                             String attributeName = mapper.aliasForSystemAttribute(ATTRIBUTE_CLASS);
                             if (attributeName != null) {
@@ -171,9 +173,9 @@ public class SerializableConverter extends AbstractReflectionConverter {
                             continue;
                         }
 
-                        ExtendedHierarchicalStreamWriterHelper.startNode(writer, mapper.serializedMember(source.getClass(), field.getName()), field.getType());
-
                         Class actualType = value.getClass();
+                        ExtendedHierarchicalStreamWriterHelper.startNode(
+                            writer, mapper.serializedMember(source.getClass(), field.getName()), actualType);
                         Class defaultType = mapper.defaultImplementationOf(field.getType());
                         if (!actualType.equals(defaultType)) {
                             String attributeName = mapper.aliasForSystemAttribute(ATTRIBUTE_CLASS);
@@ -220,6 +222,12 @@ public class SerializableConverter extends AbstractReflectionConverter {
                     if (serializationMethodInvoker.supportsWriteObject(currentType[0], false)) {
                         writtenClassWrapper[0] = true;
                         writer.startNode(mapper.serializedClass(currentType[0]));
+                        if (currentType[0] != mapper.defaultImplementationOf(currentType[0])) { 
+                            String classAttributeName = mapper.aliasForSystemAttribute(ATTRIBUTE_CLASS);
+                            if (classAttributeName != null) {
+                                writer.addAttribute(classAttributeName, currentType[0].getName());
+                            }
+                        }
                         CustomObjectOutputStream objectOutputStream = CustomObjectOutputStream.getInstance(context, callback);
                         serializationMethodInvoker.callWriteObject(currentType[0], source, objectOutputStream);
                         objectOutputStream.popCallback();
@@ -230,6 +238,12 @@ public class SerializableConverter extends AbstractReflectionConverter {
                         // serializable fields. This guarantees that readObject() will be called upon deserialization.
                         writtenClassWrapper[0] = true;
                         writer.startNode(mapper.serializedClass(currentType[0]));
+                        if (currentType[0] != mapper.defaultImplementationOf(currentType[0])) { 
+                            String classAttributeName = mapper.aliasForSystemAttribute(ATTRIBUTE_CLASS);
+                            if (classAttributeName != null) {
+                                writer.addAttribute(classAttributeName, currentType[0].getName());
+                            }
+                        }
                         callback.defaultWriteObject();
                         writer.endNode();
                     } else {
@@ -246,7 +260,7 @@ public class SerializableConverter extends AbstractReflectionConverter {
         }
     }
 
-    private void marshalUnserializableParent(final HierarchicalStreamWriter writer, final MarshallingContext context, final Object replacedSource) {
+    protected void marshalUnserializableParent(final HierarchicalStreamWriter writer, final MarshallingContext context, final Object replacedSource) {
         writer.startNode(ELEMENT_UNSERIALIZABLE_PARENTS);
         super.doMarshal(replacedSource, writer, context);
         writer.endNode();

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2005 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -40,18 +40,29 @@ public class JavaBeanConverter implements Converter {
      */
     protected final Mapper mapper;
     protected final JavaBeanProvider beanProvider;
+    private final Class type;
+    
     /**
      * @deprecated As of 1.3, no necessity for field anymore.
      */
     private String classAttributeIdentifier;
 
     public JavaBeanConverter(Mapper mapper) {
-        this(mapper, new BeanProvider());
+        this(mapper, (Class)null);
+    }
+
+    public JavaBeanConverter(Mapper mapper, Class type) {
+        this(mapper, new BeanProvider(), type);
     }
 
     public JavaBeanConverter(Mapper mapper, JavaBeanProvider beanProvider) {
+        this(mapper,beanProvider, null);
+    }
+
+    public JavaBeanConverter(Mapper mapper, JavaBeanProvider beanProvider, Class type) {
         this.mapper = mapper;
         this.beanProvider = beanProvider;
+        this.type = type;
     }
 
     /**
@@ -67,7 +78,7 @@ public class JavaBeanConverter implements Converter {
      * If you need stricter checks, subclass JavaBeanConverter
      */
     public boolean canConvert(Class type) {
-        return beanProvider.canInstantiate(type);
+        return (this.type == null || this.type==type) &&  beanProvider.canInstantiate(type);
     }
 
     public void marshal(final Object source, final HierarchicalStreamWriter writer, final MarshallingContext context) {
@@ -84,10 +95,10 @@ public class JavaBeanConverter implements Converter {
             }
 
             private void writeField(String propertyName, Class fieldType, Object newObj, Class definedIn) {
-                String serializedMember = mapper.serializedMember(source.getClass(), propertyName);
-				ExtendedHierarchicalStreamWriterHelper.startNode(writer, serializedMember, fieldType);
                 Class actualType = newObj.getClass();
                 Class defaultType = mapper.defaultImplementationOf(fieldType);
+                String serializedMember = mapper.serializedMember(source.getClass(), propertyName);
+				ExtendedHierarchicalStreamWriterHelper.startNode(writer, serializedMember, actualType);
                 if (!actualType.equals(defaultType) && classAttributeName != null) {
                     writer.addAttribute(classAttributeName, mapper.serializedClass(actualType));
                 }
