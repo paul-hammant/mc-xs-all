@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004, 2005, 2006 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2011 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -11,7 +11,6 @@
  */
 package com.thoughtworks.xstream.core;
 
-import com.thoughtworks.xstream.alias.ClassMapper;
 import com.thoughtworks.xstream.converters.ConversionException;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.ConverterLookup;
@@ -23,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * The default implementation of converters lookup.
@@ -31,29 +31,25 @@ import java.util.Map;
  * @author J&ouml;rg Schaible
  * @author Guilherme Silveira
  */
-public class DefaultConverterLookup implements ConverterLookup, ConverterRegistry {
+public class DefaultConverterLookup implements ConverterLookup, ConverterRegistry, Caching {
 
     private final PrioritizedList converters = new PrioritizedList();
-    private transient Map typeToConverterMap = Collections.synchronizedMap(new HashMap());
+    private transient Map typeToConverterMap = Collections.synchronizedMap(new WeakHashMap());
 
     public DefaultConverterLookup() {
     }
 
     /**
-     * @deprecated since 1.3, use {@link #DefaultConverterLookup()}
+     * @deprecated As of 1.3, use {@link #DefaultConverterLookup()}
      */
     public DefaultConverterLookup(Mapper mapper) {
     }
 
-    /**
-     * @deprecated since 1.2, use {@link #DefaultConverterLookup(Mapper)}
-     */
-    public DefaultConverterLookup(ClassMapper classMapper) {
-    }
-
     public Converter lookupConverterForType(Class type) {
         Converter cachedConverter = (Converter) typeToConverterMap.get(type);
-        if (cachedConverter != null) return cachedConverter;
+        if (cachedConverter != null) {
+            return cachedConverter;
+        }
         Iterator iterator = converters.iterator();
         while (iterator.hasNext()) {
             Converter converter = (Converter) iterator.next();
@@ -67,7 +63,7 @@ public class DefaultConverterLookup implements ConverterLookup, ConverterRegistr
     
     public void registerConverter(Converter converter, int priority) {
         converters.add(converter, priority);
-        for (Iterator iter = this.typeToConverterMap.keySet().iterator(); iter.hasNext();) {
+        for (Iterator iter = typeToConverterMap.keySet().iterator(); iter.hasNext();) {
             Class type = (Class) iter.next();
             if (converter.canConvert(type)) {
                 iter.remove();
@@ -75,9 +71,19 @@ public class DefaultConverterLookup implements ConverterLookup, ConverterRegistr
         }
     }
     
+    public void flushCache() {
+        typeToConverterMap.clear();
+        Iterator iterator = converters.iterator();
+        while (iterator.hasNext()) {
+            Converter converter = (Converter) iterator.next();
+            if (converter instanceof Caching) {
+                ((Caching)converter).flushCache();
+            }
+        }
+    }
+
     private Object readResolve() {
         typeToConverterMap = Collections.synchronizedMap(new HashMap());
         return this;
     }
-
 }

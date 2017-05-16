@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2005 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -11,7 +11,6 @@
  */
 package com.thoughtworks.xstream.converters.javabean;
 
-import com.thoughtworks.xstream.alias.ClassMapper;
 import com.thoughtworks.xstream.converters.ConversionException;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
@@ -22,20 +21,21 @@ import com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper;
 import com.thoughtworks.xstream.mapper.Mapper;
 
 /**
- * Can convert any bean with a public default constructor. BeanInfo are not
- * taken into consideration, this class looks for bean patterns for simple
- * properties
+ * Can convert any bean with a public default constructor. The {@link BeanProvider} used as
+ * default is based on {@link java.beans.BeanInfo}. Indexed properties are currently not supported.
  */
 public class JavaBeanConverter implements Converter {
 
     /*
      * TODO:
      *  - support indexed properties
+     *  - support attributes (XSTR-620)
+     *  - support local converters (XSTR-601)
      */
     private Mapper mapper;
-    private BeanProvider beanProvider;
+    private JavaBeanProvider beanProvider;
     /**
-     * @deprecated since 1.2, no necessity for field anymore.
+     * @deprecated As of 1.3, no necessity for field anymore.
      */
     private String classAttributeIdentifier;
 
@@ -43,7 +43,7 @@ public class JavaBeanConverter implements Converter {
         this(mapper, new BeanProvider());
     }
 
-    public JavaBeanConverter(Mapper mapper, BeanProvider beanProvider) {
+    public JavaBeanConverter(Mapper mapper, JavaBeanProvider beanProvider) {
         this.mapper = mapper;
         this.beanProvider = beanProvider;
     }
@@ -57,13 +57,6 @@ public class JavaBeanConverter implements Converter {
     }
 
     /**
-     * @deprecated As of 1.2, use {@link #JavaBeanConverter(Mapper)} and {@link com.thoughtworks.xstream.XStream#aliasAttribute(String, String)}
-     */
-    public JavaBeanConverter(ClassMapper classMapper, String classAttributeIdentifier) {
-        this((Mapper)classMapper, classAttributeIdentifier);
-    }
-
-    /**
      * Only checks for the availability of a public default constructor.
      * If you need stricter checks, subclass JavaBeanConverter
      */
@@ -73,7 +66,7 @@ public class JavaBeanConverter implements Converter {
 
     public void marshal(final Object source, final HierarchicalStreamWriter writer, final MarshallingContext context) {
         final String classAttributeName = classAttributeIdentifier != null ? classAttributeIdentifier : mapper.aliasForSystemAttribute("class");
-        beanProvider.visitSerializableProperties(source, new BeanProvider.Visitor() {
+        beanProvider.visitSerializableProperties(source, new JavaBeanProvider.Visitor() {
             public boolean shouldVisit(String name, Class definedIn) {
                 return mapper.shouldSerializeMember(definedIn, name);
             }
@@ -107,16 +100,17 @@ public class JavaBeanConverter implements Converter {
 
             String propertyName = mapper.realMember(result.getClass(), reader.getNodeName());
 
-            boolean propertyExistsInClass = beanProvider.propertyDefinedInClass(propertyName, result.getClass());
-
-            if (propertyExistsInClass) {
-                Class type = determineType(reader, result, propertyName);
-                Object value = context.convertAnother(result, type);
-                beanProvider.writeProperty(result, propertyName, value);
-            } else if (mapper.shouldSerializeMember(result.getClass(), propertyName)) {
-                throw new ConversionException("Property '" + propertyName + "' not defined in class " + result.getClass().getName());
+            if (mapper.shouldSerializeMember(result.getClass(), propertyName)) {
+                boolean propertyExistsInClass = beanProvider.propertyDefinedInClass(propertyName, result.getClass());
+    
+                if (propertyExistsInClass) {
+                    Class type = determineType(reader, result, propertyName);
+                    Object value = context.convertAnother(result, type);
+                    beanProvider.writeProperty(result, propertyName, value);
+                } else {
+                    throw new ConversionException("Property '" + propertyName + "' not defined in class " + result.getClass().getName());
+                }
             }
-
             reader.moveUp();
         }
 
@@ -142,7 +136,7 @@ public class JavaBeanConverter implements Converter {
     }
 
     /**
-     * @deprecated since 1.3
+     * @deprecated As of 1.3
      */
     public static class DuplicateFieldException extends ConversionException {
         public DuplicateFieldException(String msg) {

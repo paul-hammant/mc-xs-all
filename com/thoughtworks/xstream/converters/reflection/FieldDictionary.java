@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004, 2005, 2006 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -19,8 +19,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.Set;
 
+import com.thoughtworks.xstream.core.Caching;
 import com.thoughtworks.xstream.core.JVM;
 import com.thoughtworks.xstream.core.util.OrderRetainingMap;
 
@@ -32,7 +33,7 @@ import com.thoughtworks.xstream.core.util.OrderRetainingMap;
  * @author J&ouml;rg Schaible
  * @author Guilherme Silveira
  */
-public class FieldDictionary {
+public class FieldDictionary implements Caching {
 
     private transient Map keyedByFieldNameCache;
     private transient Map keyedByFieldKeyCache;
@@ -48,8 +49,8 @@ public class FieldDictionary {
     }
 
     private void init() {
-        keyedByFieldNameCache = new WeakHashMap();
-        keyedByFieldKeyCache = new WeakHashMap();
+        keyedByFieldNameCache = new HashMap();
+        keyedByFieldKeyCache = new HashMap();
         keyedByFieldNameCache.put(Object.class, Collections.EMPTY_MAP);
         keyedByFieldKeyCache.put(Object.class, Collections.EMPTY_MAP);
     }
@@ -59,7 +60,7 @@ public class FieldDictionary {
      * 
      * @param cls the class you are interested on
      * @return an iterator for its fields
-     * @deprecated since 1.3, use {@link #fieldsFor(Class)} instead
+     * @deprecated As of 1.3, use {@link #fieldsFor(Class)} instead
      */
     public Iterator serializableFieldsFor(Class cls) {
         return fieldsFor(cls);
@@ -71,7 +72,7 @@ public class FieldDictionary {
      * @param cls the class you are interested on
      * @return an iterator for its fields
      */
-    public Iterator fieldsFor(Class cls) {
+    public Iterator fieldsFor(final Class cls) {
         return buildMap(cls, true).values().iterator();
     }
 
@@ -85,11 +86,10 @@ public class FieldDictionary {
      * @param name the field name
      * @param definedIn the superclass (or the class itself) of cls where the field was defined
      * @return the field itself
+     * @throws ObjectAccessException if no field can be found
      */
     public Field field(Class cls, String name, Class definedIn) {
-        Map fields = buildMap(cls, definedIn != null);
-        Field field = (Field)fields.get(definedIn != null ? (Object)new FieldKey(
-            name, definedIn, 0) : (Object)name);
+        Field field = fieldOrNull(cls, name, definedIn);
         if (field == null) {
             throw new ObjectAccessException("No such field " + cls.getName() + "." + name);
         } else {
@@ -97,7 +97,28 @@ public class FieldDictionary {
         }
     }
 
+    /**
+     * Returns an specific field of some class. If definedIn is null, it searches for the field
+     * named 'name' inside the class cls. If definedIn is different than null, tries to find the
+     * specified field name in the specified class cls which should be defined in class
+     * definedIn (either equals cls or a one of it's superclasses)
+     * 
+     * @param cls the class where the field is to be searched
+     * @param name the field name
+     * @param definedIn the superclass (or the class itself) of cls where the field was defined
+     * @return the field itself or <code>null</code>
+     * @since 1.4
+     */
+    public Field fieldOrNull(Class cls, String name, Class definedIn) {
+        Map fields = buildMap(cls, definedIn != null);
+        Field field = (Field)fields.get(definedIn != null
+            ? (Object)new FieldKey(name, definedIn, 0)
+            : (Object)name);
+        return field;
+    }
+
     private Map buildMap(final Class type, boolean tupleKeyed) {
+        final Map result;
         Class cls = type;
         synchronized (this) {
             if (!keyedByFieldNameCache.containsKey(type)) {
@@ -122,11 +143,13 @@ public class FieldDictionary {
                                 fields[idx] = field;
                             }
                         }
-                        for (int i = 0; i < fields.length; i++) {
+                        for (int i = 0; i < fields.length; i++ ) {
                             Field field = fields[i];
-                            FieldKey fieldKey = new FieldKey(field.getName(), field
-                                .getDeclaringClass(), i);
-                            field.setAccessible(true);
+                            if (!field.isAccessible()) {
+                                field.setAccessible(true);
+                            }
+                            FieldKey fieldKey = new FieldKey(
+                                field.getName(), field.getDeclaringClass(), i);
                             Field existent = (Field)keyedByFieldName.get(field.getName());
                             if (existent == null
                             // do overwrite statics
@@ -137,21 +160,37 @@ public class FieldDictionary {
                             }
                             keyedByFieldKey.put(fieldKey, field);
                         }
+                        final Map sortedFieldKeys = sorter.sort(type, keyedByFieldKey);
                         keyedByFieldNameCache.put(cls, keyedByFieldName);
-                        keyedByFieldKeyCache.put(cls, sorter.sort(type, keyedByFieldKey));
+                        keyedByFieldKeyCache.put(cls, sortedFieldKeys);
+                        lastKeyedByFieldName = keyedByFieldName;
+                        lastKeyedByFieldKey = sortedFieldKeys;
+                    } else {
+                        lastKeyedByFieldName = (Map)keyedByFieldNameCache.get(cls);
+                        lastKeyedByFieldKey = (Map)keyedByFieldKeyCache.get(cls);
                     }
-                    lastKeyedByFieldName = (Map)keyedByFieldNameCache.get(cls);
-                    lastKeyedByFieldKey = (Map)keyedByFieldKeyCache.get(cls);
                 }
+                result = tupleKeyed ? lastKeyedByFieldKey : lastKeyedByFieldName;
+            } else {
+                result = (Map)(tupleKeyed
+                    ? keyedByFieldKeyCache.get(type)
+                    : keyedByFieldNameCache.get(type));
             }
         }
-        return (Map)(tupleKeyed ? keyedByFieldKeyCache.get(type) : keyedByFieldNameCache
-            .get(type));
+        return result;
+    }
+
+    public synchronized void flushCache() {
+        Set objectTypeSet = Collections.singleton(Object.class);
+        keyedByFieldNameCache.keySet().retainAll(objectTypeSet);
+        keyedByFieldKeyCache.keySet().retainAll(objectTypeSet);
+        if (sorter instanceof Caching) {
+            ((Caching)sorter).flushCache();
+        }
     }
 
     protected Object readResolve() {
         init();
         return this;
     }
-
 }

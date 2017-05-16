@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004, 2005, 2006 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2010, 2011 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -13,22 +13,35 @@ package com.thoughtworks.xstream.core;
 
 import com.thoughtworks.xstream.converters.reflection.PureJavaReflectionProvider;
 import com.thoughtworks.xstream.converters.reflection.ReflectionProvider;
+import com.thoughtworks.xstream.core.util.PresortedMap;
+import com.thoughtworks.xstream.core.util.PresortedSet;
+import com.thoughtworks.xstream.core.util.WeakCache;
 
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.security.AccessControlException;
 import java.text.AttributedString;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
-public class JVM {
+public class JVM implements Caching {
 
     private ReflectionProvider reflectionProvider;
-    private transient Map loaderCache = new HashMap();
+    private transient Map loaderCache = new WeakCache(new HashMap());
     
     private final boolean supportsAWT = loadClass("java.awt.Color") != null;
     private final boolean supportsSwing = loadClass("javax.swing.LookAndFeel") != null;
-    private final boolean supportsSQL = loadClass("java.sql.Date") != null; 
+    private final boolean supportsSQL = loadClass("java.sql.Date") != null;
+    
+    private static final boolean optimizedTreeSetAddAll;
+    private static final boolean optimizedTreeMapPutAll;
+    private static final boolean canParseUTCDateFormat;
 
     private static final String vendor = System.getProperty("java.vm.vendor");
     private static final float majorJavaVersion = getMajorJavaVersion();
@@ -36,6 +49,40 @@ public class JVM {
 
     static final float DEFAULT_JAVA_VERSION = 1.3f;
 
+    static {
+        Comparator comparator = new Comparator() {
+            public int compare(Object o1, Object o2) {
+                throw new RuntimeException();
+            }
+        };
+        boolean test = true;
+        SortedMap map = new PresortedMap(comparator);
+        map.put("one", null);
+        map.put("two", null);
+        try {
+            new TreeMap(comparator).putAll(map);
+        } catch (RuntimeException e) {
+            test = false;
+        }
+        optimizedTreeMapPutAll = test;
+        SortedSet set = new PresortedSet(comparator);
+        set.addAll(map.keySet());
+        try {
+            new TreeSet(comparator).addAll(set);
+            test = true;
+        } catch (RuntimeException e) {
+            test = false;
+        }
+        optimizedTreeSetAddAll = test;
+        try {
+            new SimpleDateFormat("z").parse("UTC");
+            test = true;
+        } catch (ParseException e) {
+            test = false;
+        }
+        canParseUTCDateFormat = test;
+    }
+    
     /**
      * Parses the java version system property to determine the major java version,
      * i.e. 1.x
@@ -44,7 +91,7 @@ public class JVM {
      */
     private static final float getMajorJavaVersion() {
         try {
-            return Float.parseFloat(System.getProperty("java.specification.version"));
+            return isAndroid() ? 1.5f : Float.parseFloat(System.getProperty("java.specification.version"));
         } catch ( NumberFormatException e ){
             // Some JVMs may not conform to the x.y.z java.version format
             return DEFAULT_JAVA_VERSION;
@@ -63,8 +110,26 @@ public class JVM {
         return majorJavaVersion >= 1.6f;
     }
 
+    /**
+     * @since 1.4
+     */
+    public static boolean is17() {
+        return majorJavaVersion >= 1.7f;
+    }
+
+    /**
+     * @since 1.4
+     */
+    public static boolean is18() {
+        return majorJavaVersion >= 1.8f;
+    }
+
     private static boolean isSun() {
         return vendor.indexOf("Sun") != -1;
+    }
+
+    private static boolean isOracle() {
+        return vendor.indexOf("Oracle") != -1;
     }
 
     private static boolean isApple() {
@@ -89,6 +154,13 @@ public class JVM {
 
     private static boolean isHarmony() {
         return vendor.indexOf("Apache Software Foundation") != -1;
+    }
+
+    /**
+     * @since 1.4
+     */
+    private static boolean isAndroid() {
+        return vendor.indexOf("Android") != -1;
     }
 
     /*
@@ -140,16 +212,13 @@ public class JVM {
 
     public Class loadClass(String name) {
         try {
-            WeakReference reference = (WeakReference) loaderCache.get(name);
-            if (reference != null) {
-                Class cached = (Class) reference.get();
-                if (cached != null) {
-                    return cached;
-                }
+            Class cached = (Class) loaderCache.get(name);
+            if (cached != null) {
+                return cached;
             }
             
             Class clazz = Class.forName(name, false, getClass().getClassLoader());
-            loaderCache.put(name, new WeakReference(clazz));
+            loaderCache.put(name, clazz);
             return clazz;
         } catch (ClassNotFoundException e) {
             return null;
@@ -159,13 +228,18 @@ public class JVM {
     public synchronized ReflectionProvider bestReflectionProvider() {
         if (reflectionProvider == null) {
             try {
-                if ( canUseSun14ReflectionProvider() ) {
-                    String cls = "com.thoughtworks.xstream.converters.reflection.Sun14ReflectionProvider";
-                    reflectionProvider = (ReflectionProvider) loadClass(cls).newInstance();
+                String className = null;
+                if (canUseSun14ReflectionProvider()) {
+                    className = "com.thoughtworks.xstream.converters.reflection.Sun14ReflectionProvider";
                 } else if (canUseHarmonyReflectionProvider()) {
-                    String cls = "com.thoughtworks.xstream.converters.reflection.HarmonyReflectionProvider";
-                    reflectionProvider = (ReflectionProvider) loadClass(cls).newInstance();
-                } 
+                    className = "com.thoughtworks.xstream.converters.reflection.HarmonyReflectionProvider";
+                }
+                if (className != null) {
+                    Class cls = loadClass(className);
+                    if (cls != null) {
+                        reflectionProvider = (ReflectionProvider) cls.newInstance();
+                    }
+                }
                 if (reflectionProvider == null) {
                     reflectionProvider = new PureJavaReflectionProvider();
                 }
@@ -183,6 +257,7 @@ public class JVM {
 
     private boolean canUseSun14ReflectionProvider() {
         return (isSun()
+            || isOracle()
             || isApple()
             || isHPUX()
             || isIBM()
@@ -223,9 +298,35 @@ public class JVM {
     public boolean supportsSQL() {
         return this.supportsSQL;
     }
+    
+    /**
+     * Checks if TreeSet.addAll is optimized for SortedSet argument.
+     * 
+     * @since 1.4
+     */
+    public static boolean hasOptimizedTreeSetAddAll() {
+        return optimizedTreeSetAddAll;
+    }
+    
+    /**
+     * Checks if TreeMap.putAll is optimized for SortedMap argument.
+     * 
+     * @since 1.4
+     */
+    public static boolean hasOptimizedTreeMapPutAll() {
+        return optimizedTreeMapPutAll;
+    }
 
+    public static boolean canParseUTCDateFormat() {
+        return canParseUTCDateFormat;
+    }
+
+    public void flushCache() {
+        loaderCache.clear();
+    }
+    
     private Object readResolve() {
-        loaderCache = new HashMap();
+        loaderCache = new WeakCache(new HashMap());
         return this;
     }
     
@@ -257,6 +358,9 @@ public class JVM {
         System.out.println("Supports AWT: " + jvm.supportsAWT());
         System.out.println("Supports Swing: " + jvm.supportsSwing());
         System.out.println("Supports SQL: " + jvm.supportsSQL());
+        System.out.println("Optimized TreeSet.addAll: " + hasOptimizedTreeSetAddAll());
+        System.out.println("Optimized TreeMap.putAll: " + hasOptimizedTreeMapPutAll());
+        System.out.println("Can parse UTC date format: " + canParseUTCDateFormat());
         System.out.println("Reverse field order detected (may have failed): " + reverse);
     }
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2005, 2006 Joe Walnes.
- * Copyright (C) 2006, 2007 XStream Committers.
+ * Copyright (C) 2006, 2007, 2009, 2010, 2011 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -15,7 +15,7 @@ import java.util.Iterator;
 
 import com.thoughtworks.xstream.core.util.FastStack;
 import com.thoughtworks.xstream.io.AttributeNameIterator;
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.naming.NameCoder;
 
 /**
  * Base class that contains common functionality across HierarchicalStreamReader implementations
@@ -33,6 +33,7 @@ public abstract class AbstractPullReader extends AbstractXmlReader {
     protected static final int OTHER = 0;
 
     private final FastStack elementStack = new FastStack(16);
+    private final FastStack pool = new FastStack(16);
 
     private final FastStack lookahead = new FastStack(4);
     private final FastStack lookback = new FastStack(4);
@@ -44,10 +45,18 @@ public abstract class AbstractPullReader extends AbstractXmlReader {
     }
 
     /**
+     * @since 1.4
+     */
+    protected AbstractPullReader(NameCoder nameCoder) {
+        super(nameCoder);
+    }
+
+    /**
      * @since 1.2
+     * @deprecated As of 1.4 use {@link AbstractPullReader#AbstractPullReader(NameCoder)} instead
      */
     protected AbstractPullReader(XmlFriendlyReplacer replacer) {
-        super(replacer);
+        this((NameCoder)replacer);
     }
     
 
@@ -106,7 +115,9 @@ public abstract class AbstractPullReader extends AbstractXmlReader {
     }
 
     private void move() {
-        switch (readEvent().type) {
+        final Event event = readEvent();
+        pool.push(event);
+        switch (event.type) {
             case START_NODE:
                 elementStack.push(pullElementName());
                 break;
@@ -133,12 +144,14 @@ public abstract class AbstractPullReader extends AbstractXmlReader {
     }
 
     private Event readRealEvent() {
-        Event event = new Event();
+        Event event = pool.hasStuff() ? (Event)pool.pop() : new Event();
         event.type = pullNextEvent();
         if (event.type == TEXT) {
             event.value = pullText();
         } else if (event.type == START_NODE) {
             event.value = pullElementName();
+        } else {
+            event.value = null;
         }
         return event;
     }
@@ -197,10 +210,6 @@ public abstract class AbstractPullReader extends AbstractXmlReader {
 
     public String getNodeName() {
         return unescapeXmlName((String) elementStack.peek());
-    }
-
-    public HierarchicalStreamReader underlyingReader() {
-        return this;
     }
 
 }
