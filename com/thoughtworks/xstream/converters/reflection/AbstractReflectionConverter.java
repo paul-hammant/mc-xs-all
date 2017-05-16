@@ -123,8 +123,12 @@ public abstract class AbstractReflectionConverter implements Converter, Caching 
                                 source.getClass(), info.fieldName);
                         if (mapping != null) {
                             if (context instanceof ReferencingMarshallingContext) {
-                                ReferencingMarshallingContext refContext = (ReferencingMarshallingContext)context;
-                                refContext.registerImplicit(info.value);
+                                if (info.value != Collections.EMPTY_LIST 
+                                        && info.value != Collections.EMPTY_SET 
+                                        && info.value != Collections.EMPTY_MAP) {
+                                    ReferencingMarshallingContext refContext = (ReferencingMarshallingContext)context;
+                                    refContext.registerImplicit(info.value);
+                                }
                             }
                             final boolean isCollection = info.value instanceof Collection;
                             final boolean isMap = info.value instanceof Map;
@@ -235,7 +239,7 @@ public abstract class AbstractReflectionConverter implements Converter, Caching 
         final Set seenFields = new HashSet() {
             public boolean add(Object e) {
                 if (!super.add(e)) {
-                    throw new DuplicateFieldException(e.toString());
+                    throw new DuplicateFieldException(((FastField)e).getName());
                 }
                 return true;
             }
@@ -468,8 +472,8 @@ public abstract class AbstractReflectionConverter implements Converter, Caching 
 
     public static class DuplicateFieldException extends ConversionException {
         public DuplicateFieldException(String msg) {
-            super(msg);
-            add("duplicate-field", msg);
+            super("Duplicate field " + msg);
+            add("field", msg);
         }
     }
 

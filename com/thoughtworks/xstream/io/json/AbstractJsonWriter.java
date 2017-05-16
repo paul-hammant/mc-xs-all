@@ -300,6 +300,7 @@ public abstract class AbstractJsonWriter extends AbstractWriter {
             switch(requiredState) {
             case STATE_SET_VALUE:
             case STATE_START_OBJECT:
+            case STATE_ROOT:
             case STATE_NEXT_ELEMENT:
                 if (!isArrayElement || (mode & EXPLICIT_MODE) != 0) {
                     currentState = handleStateTransition(currentState, STATE_START_ATTRIBUTES, null, null);
@@ -314,9 +315,10 @@ public abstract class AbstractJsonWriter extends AbstractWriter {
                 case STATE_START_OBJECT:
                     currentState = handleStateTransition(currentState, STATE_START_OBJECT, elementToAdd, null);
                     break;
+                case STATE_ROOT:
                 case STATE_NEXT_ELEMENT:
                     currentState = handleStateTransition(currentState, STATE_SET_VALUE, null, null);
-                    currentState = handleStateTransition(currentState, STATE_NEXT_ELEMENT, null, null);
+                    currentState = handleStateTransition(currentState, requiredState, null, null);
                     break;
                 }
                 return requiredState;
@@ -342,7 +344,7 @@ public abstract class AbstractJsonWriter extends AbstractWriter {
             case STATE_START_OBJECT:
                 nextElement();
                 if (!isArrayElement && (mode & EXPLICIT_MODE) == 0) {
-                    addLabel(elementToAdd);
+                    addLabel(encodeNode(elementToAdd));
                     if ((mode & EXPLICIT_MODE) == 0 && isArray) {
                         startArray();
                     }
@@ -378,7 +380,7 @@ public abstract class AbstractJsonWriter extends AbstractWriter {
                         if (!"".equals(valueToAdd)) {
                             startObject();
                         }
-                        addLabel(elementToAdd);
+                        addLabel(encodeNode(elementToAdd));
                     }
                     if ((mode & EXPLICIT_MODE) != 0) {
                         startArray();
@@ -438,7 +440,7 @@ public abstract class AbstractJsonWriter extends AbstractWriter {
                 if (elementToAdd != null) {
                     String name = ((mode & EXPLICIT_MODE) == 0 ? "@" : "" ) + elementToAdd;
                     startObject();
-                    addLabel(name);
+                    addLabel(encodeAttribute(name));
                     addValue(valueToAdd, Type.STRING);
                 }
                 return requiredState;
@@ -460,7 +462,7 @@ public abstract class AbstractJsonWriter extends AbstractWriter {
                 if (!isArray || (mode & EXPLICIT_MODE) != 0) {
                     nextElement();
                     String name = ((mode & EXPLICIT_MODE) == 0 ? "@" : "" ) + elementToAdd;
-                    addLabel(name);
+                    addLabel(encodeAttribute(name));
                     addValue(valueToAdd, Type.STRING);
                 }
                 return requiredState;
@@ -471,7 +473,7 @@ public abstract class AbstractJsonWriter extends AbstractWriter {
                 switch (requiredState) {
                 case STATE_SET_VALUE:
                     if ((mode & EXPLICIT_MODE) == 0) {
-                        addLabel("$");
+                        addLabel(encodeNode("$"));
                     }
                     currentState = handleStateTransition(currentState, STATE_SET_VALUE, null, valueToAdd);
                     if ((mode & EXPLICIT_MODE) == 0) {
