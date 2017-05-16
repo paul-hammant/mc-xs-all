@@ -68,8 +68,10 @@ public class JsonHierarchicalStreamWriter implements ExtendedHierarchicalStreamW
         }
         tagIsEmpty = false;
         finishTag();
-        if (currNode == null || (Collection.class.isAssignableFrom(currNode.clazz) == false
-                && currNode.clazz.isArray() == false)) {
+        if (currNode == null 
+                || (currNode.clazz != null 
+                        && Collection.class.isAssignableFrom(currNode.clazz) == false 
+                        && currNode.clazz.isArray() == false)) {
             writer.write("\"");
             writer.write(name);
             writer.write("\": ");
@@ -168,13 +170,12 @@ public class JsonHierarchicalStreamWriter implements ExtendedHierarchicalStreamW
 
     public void endNode() {
         depth--;
-        if (tagIsEmpty) {
+        Node node = (Node) elementStack.pop();
+        if (tagIsEmpty && !hasChildren(node.clazz)) {
             readyForNewLine = false;
             finishTag();
-            elementStack.popSilently();
         } else {
             finishTag();
-            Node node = (Node) elementStack.pop();
             if (node.clazz != null &&
                     (Collection.class.isAssignableFrom(node.clazz) || node.clazz.isArray())) {
                 writer.write("]");

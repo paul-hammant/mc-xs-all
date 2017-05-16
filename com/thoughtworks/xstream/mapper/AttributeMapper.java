@@ -1,13 +1,14 @@
 package com.thoughtworks.xstream.mapper;
 
-import com.thoughtworks.xstream.converters.Converter;
-import com.thoughtworks.xstream.converters.ConverterLookup;
-import com.thoughtworks.xstream.converters.SingleValueConverter;
-
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import com.thoughtworks.xstream.converters.Converter;
+import com.thoughtworks.xstream.converters.ConverterLookup;
+import com.thoughtworks.xstream.converters.SingleValueConverter;
 
 /**
  * Mapper that allows the usage of attributes for fields and corresponding 
@@ -18,6 +19,7 @@ import java.util.Set;
  * @author Ian Cartwright
  * @author J&ouml;rg Schaible
  * @author Mauro Talevi
+ * @author Guilherme Silveira
  * @since 1.2
  */
 public class AttributeMapper extends MapperWrapper {
@@ -25,6 +27,7 @@ public class AttributeMapper extends MapperWrapper {
     private final Map fieldNameToTypeMap = new HashMap();
     private final Set typeSet = new HashSet();
     private ConverterLookup converterLookup;
+    private final Set fieldToUseAsAttribute = new HashSet();
 
     // TODO: Remove this - JS
     public AttributeMapper(Mapper wrapped) {
@@ -67,6 +70,16 @@ public class AttributeMapper extends MapperWrapper {
         }
     }
 
+    public SingleValueConverter getConverterFromItemType(String fieldName, Class type,
+        Class definedIn) {
+        Field field = getField(definedIn, fieldName);
+        if (fieldToUseAsAttribute.contains(field)) {
+            return getLocalConverterFromItemType(type);
+        } else {
+            return getConverterFromItemType(fieldName, type);
+        }
+    }
+
     public SingleValueConverter getConverterFromItemType(Class type) {
         if (typeSet.contains(type)) {
             return getLocalConverterFromItemType(type);
@@ -82,6 +95,34 @@ public class AttributeMapper extends MapperWrapper {
             converter = getLocalConverterFromItemType(type);
         }
         return converter;
+    }
+
+    public SingleValueConverter getConverterFromAttribute(Class type, String attribute) {
+        Field field = getField(type, attribute);
+        if (fieldToUseAsAttribute.contains(field)) {
+            return getLocalConverterFromItemType(field.getType());
+        }
+        return getConverterFromAttribute(attribute);
+    }
+
+    /**
+     * Tells this mapper to use an attribute for this field.
+     * 
+     * @param field the field itself
+     * since 1.2.2
+     */
+    public void addAttributeFor(Field field) {
+        fieldToUseAsAttribute.add(field);
+    }
+
+    private Field getField(Class definedIn, String fieldName) {
+        try {
+            return definedIn.getDeclaredField(fieldName);
+        } catch (NoSuchFieldException e) {
+            throw new IllegalArgumentException(fieldName
+                + " is not a proper field of "
+                + definedIn.getName());
+        }
     }
 
 }
