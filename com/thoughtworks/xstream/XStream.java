@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -599,6 +599,10 @@ public class XStream {
         }
         mapper = new LocalConversionMapper(mapper);
         mapper = new ImmutableTypesMapper(mapper);
+        if (JVM.is18()) {
+            mapper = buildMapperDynamically("com.thoughtworks.xstream.mapper.LambdaMapper", new Class[]{Mapper.class},
+                new Object[]{mapper});
+        }
         mapper = new SecurityMapper(mapper);
         if (JVM.is15()) {
             mapper = buildMapperDynamically(ANNOTATION_MAPPER_TYPE, new Class[]{
@@ -621,6 +625,9 @@ public class XStream {
         } catch (Exception e) {
             throw new com.thoughtworks.xstream.InitializationException(
                 "Could not instantiate mapper : " + className, e);
+        } catch (LinkageError e) {
+            throw new com.thoughtworks.xstream.InitializationException(
+                "Could not instantiate mapper : " + className, e);
         }
     }
 
@@ -628,6 +635,9 @@ public class XStream {
         return next;
     }
 
+    /**
+     * @deprecated As of 1.4.8
+     */
     protected boolean useXStream11XmlFriendlyMapper() {
         return false;
     }
@@ -752,6 +762,9 @@ public class XStream {
             alias("enum-map", JVM.loadClassForName("java.util.EnumMap"));
             alias("string-builder", JVM.loadClassForName("java.lang.StringBuilder"));
             alias("uuid", JVM.loadClassForName("java.util.UUID"));
+        }
+        if (JVM.loadClassForName("java.lang.invoke.SerializedLambda") != null) {
+            aliasDynamically("serialized-lambda", "java.lang.invoke.SerializedLambda");
         }
     }
 
@@ -880,6 +893,11 @@ public class XStream {
                 "com.thoughtworks.xstream.converters.basic.UUIDConverter", PRIORITY_NORMAL,
                 null, null);
         }
+        if (JVM.is18()) {
+            registerConverterDynamically("com.thoughtworks.xstream.converters.reflection.LambdaConverter",
+                PRIORITY_NORMAL, new Class[]{Mapper.class, ReflectionProvider.class, ClassLoaderReference.class},
+                new Object[]{mapper, reflectionProvider, classLoaderReference});
+        }
 
         registerConverter(
             new SelfStreamingInstanceChecker(converterLookup, this), PRIORITY_NORMAL);
@@ -897,6 +915,9 @@ public class XStream {
                 registerConverter((SingleValueConverter)instance, priority);
             }
         } catch (Exception e) {
+            throw new com.thoughtworks.xstream.InitializationException(
+                "Could not instantiate converter : " + className, e);
+        } catch (LinkageError e) {
             throw new com.thoughtworks.xstream.InitializationException(
                 "Could not instantiate converter : " + className, e);
         }
@@ -1947,7 +1968,7 @@ public class XStream {
      * @param pattern the name pattern as regular expression
      * @since 1.4.5
      */
-    private void ignoreUnknownElements(Pattern pattern) {
+    public void ignoreUnknownElements(final Pattern pattern) {
         if (fieldAliasingMapper == null) {
             throw new com.thoughtworks.xstream.InitializationException("No "
                 + FieldAliasingMapper.class.getName()
