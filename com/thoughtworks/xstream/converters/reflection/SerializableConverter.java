@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004, 2005, 2006 Joe Walnes.
- * Copyright (C) 2006, 2007, 2008, 2010, 2011, 2012, 2013 XStream Committers.
+ * Copyright (C) 2006, 2007, 2008, 2010, 2011, 2012, 2013, 2014 XStream Committers.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -104,10 +104,12 @@ public class SerializableConverter extends AbstractReflectionConverter {
     }
 
     private boolean isSerializable(Class type) {
-        if (Serializable.class.isAssignableFrom(type)
-          && ( serializationMethodInvoker.supportsReadObject(type, true)
-            || serializationMethodInvoker.supportsWriteObject(type, true) )) {
-            for(Iterator iter = hierarchyFor(type).iterator(); iter.hasNext(); ) {
+        if (type != null
+            && Serializable.class.isAssignableFrom(type)
+            && !type.isInterface()
+            && (serializationMethodInvoker.supportsReadObject(type, true) || serializationMethodInvoker
+                .supportsWriteObject(type, true))) {
+            for (Iterator iter = hierarchyFor(type).iterator(); iter.hasNext();) {
                 if (!Serializable.class.isAssignableFrom((Class)iter.next())) {
                     return canAccess(type);
                 }
@@ -311,7 +313,7 @@ public class SerializableConverter extends AbstractReflectionConverter {
 
     protected List hierarchyFor(Class type) {
         List result = new ArrayList();
-        while(type != Object.class) {
+        while(type != Object.class && type != null) {
             result.add(type);
             type = type.getSuperclass();
         }
