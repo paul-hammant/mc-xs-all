@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 13. April 2006 by Joerg Schaible
+ */
 package com.thoughtworks.xstream;
 
 import com.thoughtworks.xstream.converters.ConversionException;
@@ -25,10 +35,10 @@ import java.io.Writer;
 public class XStreamer {
 
     /**
-     * Serialize an object incuding the XStream to a pretty-printed XML String.
+     * Serialize an object including the XStream to a pretty-printed XML String.
      * 
      * @throws ObjectStreamException if the XML contains non-serializable elements
-     * @throws com.thoughtworks.xstream.core.BaseException if the object cannot be serialized
+     * @throws com.thoughtworks.xstream.XStreamException if the object cannot be serialized
      * @since 1.2
      * @see #toXML(XStream, Object, Writer)
      */
@@ -56,7 +66,7 @@ public class XStreamer {
      * </p>
      * 
      * @throws IOException if an error occurs reading from the Writer.
-     * @throws com.thoughtworks.xstream.core.BaseException if the object cannot be serialized
+     * @throws com.thoughtworks.xstream.XStreamException if the object cannot be serialized
      * @since 1.2
      */
     public void toXML(XStream xstream, Object obj, Writer out)
@@ -78,7 +88,7 @@ public class XStreamer {
      * 
      * @throws ClassNotFoundException if a class in the XML stream cannot be found
      * @throws ObjectStreamException if the XML contains non-deserializable elements
-     * @throws com.thoughtworks.xstream.core.BaseException if the object cannot be deserialized
+     * @throws com.thoughtworks.xstream.XStreamException if the object cannot be deserialized
      * @since 1.2
      * @see #toXML(XStream, Object, Writer)
      */
@@ -97,7 +107,7 @@ public class XStreamer {
      * 
      * @throws ClassNotFoundException if a class in the XML stream cannot be found
      * @throws ObjectStreamException if the XML contains non-deserializable elements
-     * @throws com.thoughtworks.xstream.core.BaseException if the object cannot be deserialized
+     * @throws com.thoughtworks.xstream.XStreamException if the object cannot be deserialized
      * @since 1.2
      * @see #toXML(XStream, Object, Writer)
      */
@@ -118,7 +128,7 @@ public class XStreamer {
      * 
      * @throws IOException if an error occurs reading from the Reader.
      * @throws ClassNotFoundException if a class in the XML stream cannot be found
-     * @throws com.thoughtworks.xstream.core.BaseException if the object cannot be deserialized
+     * @throws com.thoughtworks.xstream.XStreamException if the object cannot be deserialized
      * @since 1.2
      * @see #toXML(XStream, Object, Writer)
      */
@@ -132,7 +142,7 @@ public class XStreamer {
      * 
      * @throws IOException if an error occurs reading from the Reader.
      * @throws ClassNotFoundException if a class in the XML stream cannot be found
-     * @throws com.thoughtworks.xstream.core.BaseException if the object cannot be deserialized
+     * @throws com.thoughtworks.xstream.XStreamException if the object cannot be deserialized
      * @since 1.2
      */
     public Object fromXML(HierarchicalStreamDriver driver, Reader xml)

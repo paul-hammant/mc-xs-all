@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2005 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 06. February 2005 by Joe Walnes
+ */
 package com.thoughtworks.xstream.core.util;
 
 import java.util.ArrayList;
@@ -15,6 +26,18 @@ public class OrderRetainingMap extends HashMap {
 
     private ArraySet keyOrder = new ArraySet();
     private List valueOrder = new ArrayList();
+
+    public OrderRetainingMap() {
+        super();
+    }
+
+    public OrderRetainingMap(Map m) {
+        super();
+        for (final Iterator iter = m.entrySet().iterator(); iter.hasNext();) {
+            final Map.Entry entry = (Map.Entry)iter.next();
+            put(entry.getKey(), entry.getValue());
+        }
+    }
 
     public Object put(Object key, Object value) {
         int idx = keyOrder.lastIndexOf(key);

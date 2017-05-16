@@ -1,8 +1,20 @@
+/*
+ * Copyright (C) 2003, 2004, 2005 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 01. October 2003 by Joe Walnes
+ */
 package com.thoughtworks.xstream.converters.extended;
 
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
+import com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 
@@ -46,7 +58,7 @@ public class ColorConverter implements Converter {
     }
 
     private void write(String fieldName, int value, HierarchicalStreamWriter writer) {
-        writer.startNode(fieldName);
+        ExtendedHierarchicalStreamWriterHelper.startNode(writer, fieldName, int.class);
         writer.setValue(String.valueOf(value));
         writer.endNode();
     }

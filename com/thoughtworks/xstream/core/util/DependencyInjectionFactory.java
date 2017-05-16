@@ -2,28 +2,11 @@
  * Copyright (c) 2007 XStream Committers.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * Redistributions of source code must retain the above copyright notice, this list of
- * conditions and the following disclaimer. Redistributions in binary form must reproduce
- * the above copyright notice, this list of conditions and the following disclaimer in
- * the documentation and/or other materials provided with the distribution.
- *
- * Neither the name of XStream nor the names of its contributors may be used to endorse
- * or promote products derived from this software without specific prior written
- * permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
- * SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
- * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
- * DAMAGE.
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 30. March 2007 by Joerg Schaible
  */
 package com.thoughtworks.xstream.core.util;
 
@@ -41,13 +24,13 @@ import com.thoughtworks.xstream.converters.reflection.ObjectAccessException;
  * A dependency injection factory.
  * 
  * @author J&ouml;rg Schaible
- * since 1.2.2
+ * @since 1.2.2
  */
 public class DependencyInjectionFactory {
 
     /**
      * Create an instance with dependency injection. The given dependencies are used to match the parameters of the
-     * constructors of the type. Constructors with most parameters are examinated first. A parameter type sequence
+     * constructors of the type. Constructors with most parameters are examined first. A parameter type sequence
      * matching the sequence of the dependencies' types match first. Otherwise all the types of the dependencies must
      * match one of the the parameters although no dependency is used twice. Use a {@link TypedNull} instance to inject
      * <code>null</code> as parameter.
@@ -60,11 +43,13 @@ public class DependencyInjectionFactory {
     public static Object newInstance(final Class type, final Object[] dependencies) {
         // sort available ctors according their arity
         final Constructor[] ctors = type.getConstructors();
-        Arrays.sort(ctors, new Comparator() {
-            public int compare(final Object o1, final Object o2) {
-                return ((Constructor)o2).getParameterTypes().length - ((Constructor)o1).getParameterTypes().length;
-            }
-        });
+        if (ctors.length > 1) {
+            Arrays.sort(ctors, new Comparator() {
+                public int compare(final Object o1, final Object o2) {
+                    return ((Constructor)o2).getParameterTypes().length - ((Constructor)o1).getParameterTypes().length;
+                }
+            });
+        }
 
         final TypedValue[] typedDependencies = new TypedValue[dependencies.length];
         for (int i = 0; i < dependencies.length; i++) {
@@ -158,9 +143,13 @@ public class DependencyInjectionFactory {
         }
 
         if (bestMatchingCtor == null) {
-            throw new ObjectAccessException("Cannot construct "
-                    + type.getName()
-                    + ", none of the dependencies match any constructor's parameters");
+            if (possibleCtor == null) {
+                throw new ObjectAccessException("Cannot construct "
+                        + type.getName()
+                        + ", none of the dependencies match any constructor's parameters");
+            } else {
+                bestMatchingCtor = possibleCtor;
+            }
         }
 
         try {

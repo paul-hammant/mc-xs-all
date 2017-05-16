@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2005 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 06. April 2005 by Joe Walnes
+ */
+
 // ***** READ THIS *****
 // This class will only compile with JDK 1.5.0 or above as it test Java enums.
 // If you are using an earlier version of Java, just don't try to build this class. XStream should work fine without it.
@@ -22,11 +34,27 @@ import java.lang.reflect.Field;
  */
 public class EnumMapConverter extends MapConverter {
 
-    private final Field typeField;
+    private final static Field typeField;
+    static {
+        // field name is "keyType" in Sun JDK, but different in IKVM 
+        Field assumedTypeField = null;
+        Field[] fields = EnumMap.class.getDeclaredFields();
+        for (int i = 0; i < fields.length; i++) {
+            if (fields[i].getType() == Class.class) {
+                // take the fist member of type "Class"
+                assumedTypeField = fields[i];
+                assumedTypeField.setAccessible(true);
+                break;
+            }
+        }
+        if (assumedTypeField == null) {
+            throw new ExceptionInInitializerError("Cannot detect element type of EnumMap");
+        }
+        typeField = assumedTypeField;
+    }
 
     public EnumMapConverter(Mapper mapper) {
         super(mapper);
-        typeField = Fields.find(EnumMap.class, "keyType");
     }
 
     public boolean canConvert(Class type) {

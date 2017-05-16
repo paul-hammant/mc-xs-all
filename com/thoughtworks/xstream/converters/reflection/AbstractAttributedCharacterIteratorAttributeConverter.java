@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 01. February 2007 by Joerg Schaible
+ */
 package com.thoughtworks.xstream.converters.reflection;
 
 import com.thoughtworks.xstream.converters.basic.AbstractSingleValueConverter;
@@ -17,7 +27,7 @@ import java.util.Map;
  * {@link AttributedCharacterIterator.Attribute} and derived types.
  * 
  * @author J&ouml;rg Schaible
- * since 1.2.2
+ * @since 1.2.2
  */
 public class AbstractAttributedCharacterIteratorAttributeConverter extends
     AbstractSingleValueConverter {
@@ -28,7 +38,7 @@ public class AbstractAttributedCharacterIteratorAttributeConverter extends
             getName = AttributedCharacterIterator.Attribute.class.getDeclaredMethod(
                 "getName", (Class[])null);
         } catch (NoSuchMethodException e) {
-            throw new InternalError("Missing AttributedCharacterIterator.Attribute.getName()");
+            throw new ExceptionInInitializerError("Missing AttributedCharacterIterator.Attribute.getName()");
         }
     }
 
@@ -70,7 +80,7 @@ public class AbstractAttributedCharacterIteratorAttributeConverter extends
     private Object readResolve() {
         fieldDictionary = new FieldDictionary();
         attributeMap = new HashMap();
-        for (final Iterator iterator = fieldDictionary.serializableFieldsFor(type); iterator
+        for (final Iterator iterator = fieldDictionary.fieldsFor(type); iterator
             .hasNext();) {
             final Field field = (Field)iterator.next();
             if (field.getType() == type && Modifier.isStatic(field.getModifiers())) {

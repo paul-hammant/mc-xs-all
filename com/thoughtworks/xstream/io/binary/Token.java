@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 04. June 2006 by Joe Walnes
+ */
 package com.thoughtworks.xstream.io.binary;
 
 import com.thoughtworks.xstream.io.StreamException;
@@ -77,7 +88,7 @@ public abstract class Token {
 
     public int hashCode() {
         int result;
-        result = (int) type;
+        result = type;
         result = 29 * result + (int) (id ^ (id >>> 32));
         result = 29 * result + (value != null ? value.hashCode() : 0);
         return result;
@@ -228,10 +239,10 @@ public abstract class Token {
             super(TYPE_END_NODE);
         }
 
-        public void writeTo(DataOutput out, byte idType) throws IOException {
+        public void writeTo(DataOutput out, byte idType) {
         }
 
-        public void readFrom(DataInput in, byte idType) throws IOException {
+        public void readFrom(DataInput in, byte idType) {
         }
 
     }

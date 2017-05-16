@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2004, 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 02. March 2006 by Joerg Schaible
+ */
 package com.thoughtworks.xstream.converters.reflection;
 
 import com.thoughtworks.xstream.converters.ConversionException;
@@ -45,26 +56,37 @@ public abstract class AbstractReflectionConverter implements Converter {
 
     protected void doMarshal(final Object source, final HierarchicalStreamWriter writer, final MarshallingContext context) {
         final Set seenFields = new HashSet();
-        final Set seenAsAttributes = new HashSet();
+        final Map defaultFieldDefinition = new HashMap();
 
         // Attributes might be preferred to child elements ...
          reflectionProvider.visitSerializableFields(source, new ReflectionProvider.Visitor() {
             public void visit(String fieldName, Class type, Class definedIn, Object value) {
+                if (!mapper.shouldSerializeMember(definedIn, fieldName)) {
+                    return;
+                }
+                if (!defaultFieldDefinition.containsKey(fieldName)) {
+                    Class lookupType = source.getClass();
+                    // See XSTR-457 and OmitFieldsTest
+                    // if (definedIn != source.getClass() && !mapper.shouldSerializeMember(lookupType, fieldName)) {
+                    //    lookupType = definedIn;
+                    // }
+                    defaultFieldDefinition.put(fieldName, reflectionProvider.getField(lookupType, fieldName));
+                }
+                
                 SingleValueConverter converter = mapper.getConverterFromItemType(fieldName, type, definedIn);
-                if(converter == null) {
-                	converter = mapper.getConverterFromItemType(fieldName, type);
-                }
-                if (converter == null) {
-                    converter = mapper.getConverterFromItemType(type);
-                }
                 if (converter != null) {
                     if (value != null) {
+                        if (seenFields.contains(fieldName)) {
+                            throw new ConversionException("Cannot write field with name '" + fieldName 
+                                + "' twice as attribute for object of type " + source.getClass().getName());
+                        }
                         final String str = converter.toString(value);
                         if (str != null) {
-                            writer.addAttribute(mapper.aliasForAttribute(definedIn, fieldName), str);
+                            writer.addAttribute(mapper.aliasForAttribute(mapper.serializedMember(definedIn, fieldName)), str);
                         }
                     }
-                    seenAsAttributes.add(fieldName);
+                    // TODO: name is not enough, need also "definedIn"! 
+                    seenFields.add(fieldName);
                 }
             }
         });
@@ -72,7 +94,10 @@ public abstract class AbstractReflectionConverter implements Converter {
         // Child elements not covered already processed as attributes ...
         reflectionProvider.visitSerializableFields(source, new ReflectionProvider.Visitor() {
             public void visit(String fieldName, Class fieldType, Class definedIn, Object newObj) {
-                if (!seenAsAttributes.contains(fieldName) && newObj != null) {
+                if (!mapper.shouldSerializeMember(definedIn, fieldName)) {
+                    return;
+                }
+                if (!seenFields.contains(fieldName) && newObj != null) {
                     Mapper.ImplicitCollectionMapping mapping = mapper.getImplicitCollectionDefForFieldName(source.getClass(), fieldName);
                     if (mapping != null) {
                         if (mapping.getItemFieldName() != null) {
@@ -86,25 +111,25 @@ public abstract class AbstractReflectionConverter implements Converter {
                         }
                     } else {
                         writeField(fieldName, fieldName, fieldType, definedIn, newObj);
-                        seenFields.add(fieldName);
                     }
                 }
             }
 
             private void writeField(String fieldName, String aliasName, Class fieldType, Class definedIn, Object newObj) {
-                if (!mapper.shouldSerializeMember(definedIn, aliasName)) {
-                    return;
-                }
-                ExtendedHierarchicalStreamWriterHelper.startNode(writer, mapper.serializedMember(definedIn, aliasName), fieldType); 
+                ExtendedHierarchicalStreamWriterHelper.startNode(writer, mapper.serializedMember(source.getClass(), aliasName), fieldType); 
 
                 Class actualType = newObj.getClass();
 
                 Class defaultType = mapper.defaultImplementationOf(fieldType);
                 if (!actualType.equals(defaultType)) {
-                    writer.addAttribute(mapper.aliasForAttribute("class"), mapper.serializedClass(actualType));
+                    String serializedClassName = mapper.serializedClass(actualType);
+                    if (!serializedClassName.equals(mapper.serializedClass(defaultType))) {
+                        writer.addAttribute(mapper.aliasForAttribute("class"), serializedClassName);
+                    }
                 }
 
-                if (seenFields.contains(aliasName)) {
+                final Field defaultField = (Field)defaultFieldDefinition.get(fieldName);
+                if (defaultField.getDeclaringClass() != definedIn) {
                     writer.addAttribute(mapper.aliasForAttribute("defined-in"), mapper.serializedClass(definedIn));
                 }
 
@@ -117,7 +142,7 @@ public abstract class AbstractReflectionConverter implements Converter {
     }
 
     protected void marshallField(final MarshallingContext context, Object newObj, Field field) {
-        context.convertAnother(newObj);
+        context.convertAnother(newObj, mapper.getLocalConverter(field.getDeclaringClass(), field.getName()));
     }
 
     public Object unmarshal(final HierarchicalStreamReader reader, final UnmarshallingContext context) {
@@ -133,23 +158,16 @@ public abstract class AbstractReflectionConverter implements Converter {
         // Process attributes before recursing into child elements.
         while (it.hasNext()) {
             String attrAlias = (String) it.next();
-            String attrName = mapper.attributeForAlias(result.getClass(), attrAlias);
+            String attrName = mapper.realMember(result.getClass(), mapper.attributeForAlias(attrAlias));
             Class classDefiningField = determineWhichClassDefinesField(reader);
             boolean fieldExistsInClass = reflectionProvider.fieldDefinedInClass(attrName, result.getClass());
             if (fieldExistsInClass) {
                 Field field = reflectionProvider.getField(result.getClass(), attrName);
-                if (Modifier.isTransient(field.getModifiers())) {
-                    reader.moveUp();
+                if (Modifier.isTransient(field.getModifiers()) && ! shouldUnmarshalTransientFields()) {
                     continue;
                 }
                 SingleValueConverter converter = mapper.getConverterFromAttribute(field.getDeclaringClass(), attrName);
-                if (converter == null) {
-                    converter = mapper.getConverterFromAttribute(attrName);
-                }
                 Class type = field.getType();
-                if (converter == null) {
-                    converter = mapper.getConverterFromItemType(type);
-                }
                 if (converter != null) {
                     Object value = converter.fromString(reader.getAttribute(attrAlias));
                     if (type.isPrimitive()) {
@@ -180,8 +198,8 @@ public abstract class AbstractReflectionConverter implements Converter {
                 : implicitCollectionMapping.getItemType();
             final Object value;
             if (fieldExistsInClass) {
-                Field field = reflectionProvider.getField(result.getClass(), fieldName);
-                if (Modifier.isTransient(field.getModifiers())) {
+                Field field = reflectionProvider.getField(classDefiningField != null ? classDefiningField : result.getClass(), fieldName);
+                if (Modifier.isTransient(field.getModifiers()) && !shouldUnmarshalTransientFields()) {
                     reader.moveUp();
                     continue;
                 }
@@ -213,7 +231,11 @@ public abstract class AbstractReflectionConverter implements Converter {
     }
 
     protected Object unmarshallField(final UnmarshallingContext context, final Object result, Class type, Field field) {
-        return context.convertAnother(result, type);
+        return context.convertAnother(result, type, mapper.getLocalConverter(field.getDeclaringClass(), field.getName()));
+    }
+    
+    protected boolean shouldUnmarshalTransientFields() {
+        return false;
     }
 
     private Map writeValueToImplicitCollection(UnmarshallingContext context, Object value, Map implicitCollections, Object result, String itemFieldName) {

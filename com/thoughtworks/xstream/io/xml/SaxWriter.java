@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2004, 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 14. August 2004 by Joe Walnes
+ */
 package com.thoughtworks.xstream.io.xml;
 
 import com.thoughtworks.xstream.XStream;
@@ -31,12 +42,12 @@ import java.util.Map;
  * {@link #SOURCE_OBJECT_LIST_PROPERTY} to define the list of objects to serialize.
  * </p>
  * <p/> Configuration of this SAX parser is achieved through the standard
- * {@link #setProperty SAX property mecanism}. While specific setter methods require direct
+ * {@link #setProperty SAX property mechanism}. While specific setter methods require direct
  * access to the parser instance, SAX properties support configuration settings to be propagated
  * through a chain of {@link org.xml.sax.XMLFilter filters} down to the underlying parser
  * object.
  * </p>
- * <p/> This mecanism shall be used to configure the
+ * <p/> This mechanism shall be used to configure the
  * {@link #SOURCE_OBJECT_LIST_PROPERTY objects to be serialized} as well as the
  * {@link #CONFIGURED_XSTREAM_PROPERTY XStream facade}.
  * </p>
@@ -105,8 +116,19 @@ public final class SaxWriter extends AbstractXmlWriter implements XMLReader {
 
     private final boolean includeEnclosingDocument;
 
+    public SaxWriter(XmlFriendlyReplacer replacer)
+    {
+    	this(true, replacer);
+    }
+    
+    public SaxWriter(boolean includeEnclosingDocument, XmlFriendlyReplacer replacer)
+    {
+    	super(replacer);
+    	this.includeEnclosingDocument = includeEnclosingDocument;
+    }
+    
     public SaxWriter(boolean includeEnclosingDocument) {
-        this.includeEnclosingDocument = includeEnclosingDocument;
+        this(includeEnclosingDocument, new XmlFriendlyReplacer());
     }
 
     public SaxWriter() {
@@ -132,7 +154,7 @@ public final class SaxWriter extends AbstractXmlWriter implements XMLReader {
      * in specific contexts, such as before, during, or after
      * a parse.</p>
      * <p/>
-     * <strong>Note</strong>: This implemention only supports the two
+     * <strong>Note</strong>: This implementation only supports the two
      * mandatory SAX features.</p>
      *
      * @param name  the feature name, which is a fully-qualified URI.
@@ -211,7 +233,7 @@ public final class SaxWriter extends AbstractXmlWriter implements XMLReader {
      * This method is also the standard mechanism for setting
      * extended handlers.</p>
      * <p/>
-     * <strong>Note</strong>: This implemention only supports two
+     * <strong>Note</strong>: This implementation only supports two
      * (proprietary) properties: {@link #CONFIGURED_XSTREAM_PROPERTY}
      * and {@link #SOURCE_OBJECT_LIST_PROPERTY}.</p>
      *

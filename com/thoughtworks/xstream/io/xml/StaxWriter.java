@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2004, 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 29. September 2004 by James Strachan
+ */
 package com.thoughtworks.xstream.io.xml;
 
 import com.thoughtworks.xstream.io.StreamException;
@@ -10,7 +21,7 @@ import javax.xml.stream.XMLStreamWriter;
  * A stream writing that outputs to a StAX stream writer
  *
  * @author James Strachan
- * @version $Revision: 1049 $
+ * @version $Revision: 1388 $
  */
 public class StaxWriter extends AbstractXmlWriter {
     
@@ -62,7 +73,7 @@ public class StaxWriter extends AbstractXmlWriter {
     
     public void flush() {
         try {
-            out.close();
+            out.flush();
         }
         catch (XMLStreamException e) {
             throw new StreamException(e);

@@ -1,5 +1,17 @@
+/*
+ * Copyright (C) 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 22. January 2005 by Joe Walnes
+ */
 package com.thoughtworks.xstream.mapper;
 
+import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.SingleValueConverter;
 
 
@@ -8,6 +20,7 @@ import com.thoughtworks.xstream.converters.SingleValueConverter;
  * with other mapper implementations.
  *
  * @author Joe Walnes
+ * @author J&ouml;rg Schaible
  */
 public class DefaultMapper implements Mapper {
 
@@ -126,15 +139,33 @@ public class DefaultMapper implements Mapper {
         return serialized;
     }
 
+    /**
+     * @deprecated since 1.3, use {@link #getConverterFromAttribute(Class, String)}
+     */
     public SingleValueConverter getConverterFromAttribute(String name) {
         return null;
     }
 
+    /**
+     * @deprecated since 1.3, use {@link #getConverterFromItemType(String, Class, Class)}
+     */
     public SingleValueConverter getConverterFromItemType(String fieldName, Class type) {
         return null;
     }
 
+    /**
+     * @deprecated since 1.3, use {@link #getConverterFromItemType(String, Class, Class)}
+     */
     public SingleValueConverter getConverterFromItemType(Class type) {
+        return null;
+    }
+
+    public SingleValueConverter getConverterFromItemType(String fieldName, Class type,
+        Class definedIn) {
+        return null;
+    }
+
+    public Converter getLocalConverter(Class definedIn, String fieldName) {
         return null;
     }
 
@@ -142,19 +173,21 @@ public class DefaultMapper implements Mapper {
         return null;
     }
 
-	public SingleValueConverter getConverterFromItemType(String fieldName, Class type, Class definedIn) {
-		return null;
-	}
+    /**
+     * @deprecated since 1.3, use combination of {@link #serializedMember(Class, String)} and {@link #getConverterFromItemType(String, Class, Class)} 
+     */
+    public String aliasForAttribute(Class definedIn, String fieldName) {
+        return fieldName;
+    }
 
-	public String aliasForAttribute(Class definedIn, String fieldName) {
-		return fieldName;
-	}
+    /**
+     * @deprecated since 1.3, use combination of {@link #realMember(Class, String)} and {@link #getConverterFromItemType(String, Class, Class)} 
+     */
+    public String attributeForAlias(Class definedIn, String alias) {
+        return alias;
+    }
 
-	public String attributeForAlias(Class definedIn, String alias) {
-		return alias;
-	}
-
-	public SingleValueConverter getConverterFromAttribute(Class type, String attribute) {
-		return null;
-	}
+    public SingleValueConverter getConverterFromAttribute(Class type, String attribute) {
+        return null;
+    }
 }

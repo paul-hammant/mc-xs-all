@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2004, 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 07. March 2004 by Joe Walnes
+ */
 package com.thoughtworks.xstream.converters.reflection;
 
 import com.thoughtworks.xstream.core.JVM;
@@ -28,11 +39,12 @@ import java.util.Map;
  * Cannot newInstance: classes without public visibility, non-static inner classes, classes without default constructors.
  * Note that any code in the constructor of a class will be executed when the ObjectFactory instantiates the object.
  * </p>
+ * @author Joe Walnes
  */
 public class PureJavaReflectionProvider implements ReflectionProvider {
 
     private transient Map serializedDataCache = Collections.synchronizedMap(new HashMap());
-    protected transient FieldDictionary fieldDictionary;
+    protected FieldDictionary fieldDictionary;
 
 	public PureJavaReflectionProvider() {
 		this(new FieldDictionary(new ImmutableFieldKeySorter()));
@@ -106,7 +118,7 @@ public class PureJavaReflectionProvider implements ReflectionProvider {
     }
 
     public void visitSerializableFields(Object object, ReflectionProvider.Visitor visitor) {
-        for (Iterator iterator = fieldDictionary.serializableFieldsFor(object.getClass()); iterator.hasNext();) {
+        for (Iterator iterator = fieldDictionary.fieldsFor(object.getClass()); iterator.hasNext();) {
             Field field = (Field) iterator.next();
             if (!fieldModifiersSupported(field)) {
                 continue;
@@ -168,14 +180,13 @@ public class PureJavaReflectionProvider implements ReflectionProvider {
         return fieldDictionary.field(definedIn, fieldName, null);
     }
 
-    protected Object readResolve() {
-        serializedDataCache = Collections.synchronizedMap(new HashMap());
-        fieldDictionary = new FieldDictionary();
-        return this;
+    public void setFieldDictionary(FieldDictionary dictionary) {
+        this.fieldDictionary = dictionary;
     }
 
-	public void setFieldDictionary(FieldDictionary dictionary) {
-		this.fieldDictionary = dictionary;
-	}
+    protected Object readResolve() {
+        serializedDataCache = Collections.synchronizedMap(new HashMap());
+        return this;
+    }
 
 }

@@ -1,7 +1,18 @@
+/*
+ * Copyright (C) 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 17. April 2006 by Mauro Talevi
+ */
 package com.thoughtworks.xstream.io.xml;
 
 /**
- * Allows replacement of Strings in xml-friendly drivers.
+ * Allows replacement of Strings in XML-friendly drivers.
  * 
  * The default replacements are:
  * <ul>
@@ -10,6 +21,7 @@ package com.thoughtworks.xstream.io.xml;
  * </ul>
  * 
  * @author Mauro Talevi
+ * @author J&ouml;rg Schaible
  * @since 1.2
  */
 public class XmlFriendlyReplacer {
@@ -61,29 +73,22 @@ public class XmlFriendlyReplacer {
      * @return The String with unescaped name
      */
     public String unescapeName(String name) {
-        StringBuffer result = new StringBuffer();
-        int length = name.length();
-        for(int i = 0; i < length; i++) {
-            char c = name.charAt(i);
-            if ( stringFoundAt(name, i, underscoreReplacement)) {
-                i += underscoreReplacement.length() - 1;
-                result.append('_');
-            } else if ( stringFoundAt(name, i, dollarReplacement)) {
-                i += dollarReplacement.length() - 1;
+        final int underscoreReplacementInc = underscoreReplacement.length() - 1;
+        final int dollarReplacementInc = dollarReplacement.length() - 1;
+        final int length = name.length();
+        final StringBuffer result = new StringBuffer();
+        for (int i = 0; i < length; i++) {
+            final char c = name.charAt(i);
+            if (name.startsWith(dollarReplacement, i)) {
+                i += dollarReplacementInc;
                 result.append('$');
+            } else if (name.startsWith(underscoreReplacement, i)) {
+                i += underscoreReplacementInc;
+                result.append('_');
             } else {
                 result.append(c);
             }
         }
         return result.toString();
     }
-    
-    private boolean stringFoundAt(String name, int i, String replacement) {
-        if ( name.length() >= i + replacement.length() 
-          && name.substring(i, i + replacement.length()).equals(replacement) ){
-            return true;
-        }
-        return false;
-    }
-
 }

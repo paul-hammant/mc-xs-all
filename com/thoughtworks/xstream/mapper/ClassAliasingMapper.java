@@ -1,12 +1,21 @@
+/*
+ * Copyright (C) 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 09. April 2005 by Joe Walnes
+ */
 package com.thoughtworks.xstream.mapper;
 
 import com.thoughtworks.xstream.alias.ClassMapper;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Mapper that allows a fully qualified class name to be replaced with a shorter alias.
@@ -19,14 +28,13 @@ public class ClassAliasingMapper extends MapperWrapper {
     protected final Map typeToName = new HashMap();
     protected final Map classToName = new HashMap();
     protected transient Map nameToType = new HashMap();
-    protected final Set knownAttributes = new HashSet();
 
     public ClassAliasingMapper(Mapper wrapped) {
         super(wrapped);
     }
 
     /**
-     * @deprecated As of 1.2, use {@link #ClassAliasingMapper(Mapper)}
+     * @deprecated since 1.2, use {@link #ClassAliasingMapper(Mapper)}
      */
     public ClassAliasingMapper(ClassMapper wrapped) {
         this((Mapper)wrapped);
@@ -37,9 +45,11 @@ public class ClassAliasingMapper extends MapperWrapper {
         classToName.put(type.getName(), name);
     }
 
+    /**
+     * @deprecated since 1.3, method was a leftover of an old implementation
+     */
     public void addClassAttributeAlias(String name, Class type) {
         addClassAlias(name, type);
-        knownAttributes.add(name);
     }
 
     public void addTypeAlias(String name, Class type) {

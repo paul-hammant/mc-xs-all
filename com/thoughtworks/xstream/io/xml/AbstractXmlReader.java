@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 04. June 2006 by Mauro Talevi
+ */
 package com.thoughtworks.xstream.io.xml;
 
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
@@ -9,7 +20,7 @@ import com.thoughtworks.xstream.io.HierarchicalStreamReader;
  * @author Mauro Talevi
  * @since 1.2
  */
-public abstract class AbstractXmlReader implements HierarchicalStreamReader {
+public abstract class AbstractXmlReader implements HierarchicalStreamReader, XmlFriendlyReader {
 
     private XmlFriendlyReplacer replacer;
 
@@ -27,7 +38,7 @@ public abstract class AbstractXmlReader implements HierarchicalStreamReader {
      * @param name the escaped XML-friendly name
      * @return An unescaped name with original characters
      */
-    protected String unescapeXmlName(String name) {
+    public String unescapeXmlName(String name) {
         return replacer.unescapeName(name);
     }
     

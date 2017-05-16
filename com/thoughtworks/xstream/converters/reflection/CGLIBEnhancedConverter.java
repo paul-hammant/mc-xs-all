@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 13. April 2006 by Joerg Schaible
+ */
 package com.thoughtworks.xstream.converters.reflection;
 
 import com.thoughtworks.xstream.converters.ConversionException;
@@ -38,7 +48,7 @@ public class CGLIBEnhancedConverter extends SerializableConverter {
 
     // An alternative implementation is possible by using Enhancer.setCallbackType and
     // Enhancer.createClass().
-    // In this case the converter must be deived from the AbstractReflectionConverter,
+    // In this case the converter must be derived from the AbstractReflectionConverter,
     // the proxy info must be written/read in a separate structure first, then the
     // Enhancer must create the type and at last the functionality of the ReflectionConverter
     // must be used to create the instance. But let's see user feedback first.
@@ -47,11 +57,9 @@ public class CGLIBEnhancedConverter extends SerializableConverter {
     private static String DEFAULT_NAMING_MARKER = "$$EnhancerByCGLIB$$";
     private static String CALLBACK_MARKER = "CGLIB$CALLBACK_";
     private transient Map fieldCache;
-    private final Mapper mapper;
 
     public CGLIBEnhancedConverter(Mapper mapper, ReflectionProvider reflectionProvider) {
         super(mapper, new CGLIBFilteringReflectionProvider(reflectionProvider));
-        this.mapper = mapper;
         this.fieldCache = new HashMap();
     }
 

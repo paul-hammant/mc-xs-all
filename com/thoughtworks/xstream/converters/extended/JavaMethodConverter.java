@@ -1,8 +1,20 @@
+/*
+ * Copyright (C) 2004, 2005 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 04. April 2004 by Joe Walnes
+ */
 package com.thoughtworks.xstream.converters.extended;
 
 import com.thoughtworks.xstream.converters.ConversionException;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.SingleValueConverter;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
@@ -14,12 +26,13 @@ import java.util.List;
 
 /**
  * Converts a java.lang.reflect.Method to XML.
- *
+ * 
  * @author Aslak Helles&oslash;y
+ * @author J&ouml;rg Schaible
  */
 public class JavaMethodConverter implements Converter {
 
-    private final ClassLoader classLoader;
+    private final SingleValueConverter javaClassConverter;
 
     /**
      * @deprecated As of 1.2 - use other constructor and explicitly supply a ClassLoader.
@@ -29,7 +42,7 @@ public class JavaMethodConverter implements Converter {
     }
 
     public JavaMethodConverter(ClassLoader classLoader) {
-        this.classLoader = classLoader;
+        this.javaClassConverter = new JavaClassConverter(classLoader);
     }
 
     public boolean canConvert(Class type) {
@@ -39,11 +52,11 @@ public class JavaMethodConverter implements Converter {
     public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
         if (source instanceof Method) {
             Method method = (Method) source;
-            String declaringClassName = method.getDeclaringClass().getName();
+            String declaringClassName = javaClassConverter.toString(method.getDeclaringClass());
             marshalMethod(writer, declaringClassName, method.getName(), method.getParameterTypes());
         } else {
             Constructor method = (Constructor) source;
-            String declaringClassName = method.getDeclaringClass().getName();
+            String declaringClassName = javaClassConverter.toString(method.getDeclaringClass());
             marshalMethod(writer, declaringClassName, null, method.getParameterTypes());
         }
     }
@@ -63,9 +76,8 @@ public class JavaMethodConverter implements Converter {
 
         writer.startNode("parameter-types");
         for (int i = 0; i < parameterTypes.length; i++) {
-            Class parameterType = parameterTypes[i];
             writer.startNode("class");
-            writer.setValue(parameterType.getName());
+            writer.setValue(javaClassConverter.toString(parameterTypes[i]));
             writer.endNode();
         }
         writer.endNode();
@@ -77,7 +89,7 @@ public class JavaMethodConverter implements Converter {
 
             reader.moveDown();
             String declaringClassName = reader.getValue();
-            Class declaringClass = loadClass(declaringClassName);
+            Class declaringClass = (Class)javaClassConverter.fromString(declaringClassName);
             reader.moveUp();
 
             String methodName = null;
@@ -92,7 +104,7 @@ public class JavaMethodConverter implements Converter {
             while (reader.hasMoreChildren()) {
                 reader.moveDown();
                 String parameterTypeName = reader.getValue();
-                parameterTypeList.add(loadClass(parameterTypeName));
+                parameterTypeList.add(javaClassConverter.fromString(parameterTypeName));
                 reader.moveUp();
             }
             Class[] parameterTypes = (Class[]) parameterTypeList.toArray(new Class[parameterTypeList.size()]);
@@ -103,34 +115,8 @@ public class JavaMethodConverter implements Converter {
             } else {
                 return declaringClass.getDeclaredConstructor(parameterTypes);
             }
-        } catch (ClassNotFoundException e) {
-            throw new ConversionException(e);
         } catch (NoSuchMethodException e) {
             throw new ConversionException(e);
         }
-    }
-
-    private Class loadClass(String className) throws ClassNotFoundException {
-        Class primitiveClass = primitiveClassForName(className);
-        if( primitiveClass != null ){
-            return primitiveClass;
-        }
-        return classLoader.loadClass(className);
-    }
-
-    /**
-     * Lookup table for primitive types.
-     */
-    private Class primitiveClassForName(String name) {
-        return  name.equals("void") ? Void.TYPE :
-                name.equals("boolean") ? Boolean.TYPE :
-                name.equals("byte") ? Byte.TYPE :
-                name.equals("char") ? Character.TYPE :
-                name.equals("short") ? Short.TYPE :
-                name.equals("int") ? Integer.TYPE :
-                name.equals("long") ? Long.TYPE :
-                name.equals("float") ? Float.TYPE :
-                name.equals("double") ? Double.TYPE :
-                null;
     }
 }

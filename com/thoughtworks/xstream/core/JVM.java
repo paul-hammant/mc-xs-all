@@ -1,8 +1,20 @@
+/*
+ * Copyright (C) 2004, 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007, 2008 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 09. May 2004 by Joe Walnes
+ */
 package com.thoughtworks.xstream.core;
 
 import com.thoughtworks.xstream.converters.reflection.PureJavaReflectionProvider;
 import com.thoughtworks.xstream.converters.reflection.ReflectionProvider;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.security.AccessControlException;
 import java.text.AttributedString;
@@ -12,30 +24,21 @@ import java.util.Map;
 public class JVM {
 
     private ReflectionProvider reflectionProvider;
-    private Map loaderCache = new HashMap();
+    private transient Map loaderCache = new HashMap();
     
     private final boolean supportsAWT = loadClass("java.awt.Color") != null;
+    private final boolean supportsSwing = loadClass("javax.swing.LookAndFeel") != null;
     private final boolean supportsSQL = loadClass("java.sql.Date") != null; 
 
-    private static final boolean reverseFieldOrder;
+    private static final String vendor = System.getProperty("java.vm.vendor");
     private static final float majorJavaVersion = getMajorJavaVersion();
+    private static final boolean reverseFieldOrder = isHarmony() || (isIBM() && !is15());
 
     static final float DEFAULT_JAVA_VERSION = 1.3f;
 
-    static {
-        boolean reverse = false;
-        final Field[] fields = AttributedString.class.getDeclaredFields();
-        for (int i = 0; i < fields.length; i++) {
-            if (fields[i].getName().equals("text")) {
-                reverse = i > 3;
-            }
-        }
-        reverseFieldOrder = reverse;
-    }
-
     /**
      * Parses the java version system property to determine the major java version,
-     * ie 1.x
+     * i.e. 1.x
      *
      * @return A float of the form 1.x
      */
@@ -61,25 +64,29 @@ public class JVM {
     }
 
     private static boolean isSun() {
-        return System.getProperty("java.vm.vendor").indexOf("Sun") != -1;
+        return vendor.indexOf("Sun") != -1;
     }
 
     private static boolean isApple() {
-        return System.getProperty("java.vm.vendor").indexOf("Apple") != -1;
+        return vendor.indexOf("Apple") != -1;
     }
 
     private static boolean isHPUX() {
-        return System.getProperty("java.vm.vendor").indexOf("Hewlett-Packard Company") != -1;
+        return vendor.indexOf("Hewlett-Packard Company") != -1;
     }
 
     private static boolean isIBM() {
-    	return System.getProperty("java.vm.vendor").indexOf("IBM") != -1;
+    	return vendor.indexOf("IBM") != -1;
     }
 
     private static boolean isBlackdown() {
-        return System.getProperty("java.vm.vendor").indexOf("Blackdown") != -1;
+        return vendor.indexOf("Blackdown") != -1;
     }
-    
+
+    private static boolean isHarmony() {
+        return vendor.indexOf("Apache Software Foundation") != -1;
+    }
+
     /*
      * Support for sun.misc.Unsafe and sun.reflect.ReflectionFactory is present
      * in JRockit versions R25.1.0 and later, both 1.4.2 and 5.0 (and in future
@@ -87,7 +94,7 @@ public class JVM {
      */
     private static boolean isBEAWithUnsafeSupport() {
         // This property should be "BEA Systems, Inc."
-        if (System.getProperty("java.vm.vendor").indexOf("BEA") != -1) {
+        if (vendor.indexOf("BEA") != -1) {
 
             /*
              * Recent 1.4.2 and 5.0 versions of JRockit have a java.vm.version
@@ -120,16 +127,25 @@ public class JVM {
     }
     
     private static boolean isHitachi() {
-        return System.getProperty("java.vm.vendor").indexOf("Hitachi") != -1;
+        return vendor.indexOf("Hitachi") != -1;
+    }
+    
+    private static boolean isSAP() {
+        return vendor.indexOf("SAP AG") != -1;
     }
 
     public Class loadClass(String name) {
         try {
-            Class clazz = (Class)loaderCache.get(name);
-            if (clazz == null) {
-                clazz = Class.forName(name, false, getClass().getClassLoader());
-                loaderCache.put(name, clazz);
+            WeakReference reference = (WeakReference) loaderCache.get(name);
+            if (reference != null) {
+                Class cached = (Class) reference.get();
+                if (cached != null) {
+                    return cached;
+                }
             }
+            
+            Class clazz = Class.forName(name, false, getClass().getClassLoader());
+            loaderCache.put(name, new WeakReference(clazz));
             return clazz;
         } catch (ClassNotFoundException e) {
             return null;
@@ -142,7 +158,11 @@ public class JVM {
                 if ( canUseSun14ReflectionProvider() ) {
                     String cls = "com.thoughtworks.xstream.converters.reflection.Sun14ReflectionProvider";
                     reflectionProvider = (ReflectionProvider) loadClass(cls).newInstance();
-                } else {
+                } else if (canUseHarmonyReflectionProvider()) {
+                    String cls = "com.thoughtworks.xstream.converters.reflection.HarmonyReflectionProvider";
+                    reflectionProvider = (ReflectionProvider) loadClass(cls).newInstance();
+                } 
+                if (reflectionProvider == null) {
                     reflectionProvider = new PureJavaReflectionProvider();
                 }
             } catch (InstantiationException e) {
@@ -158,25 +178,70 @@ public class JVM {
     }
 
     private boolean canUseSun14ReflectionProvider() {
-        return (isSun() || isApple() || isHPUX() || isIBM() || isBlackdown() || isBEAWithUnsafeSupport() || isHitachi()) && is14() && loadClass("sun.misc.Unsafe") != null;
+        return (isSun() || isApple() || isHPUX() || isIBM() || isBlackdown() || isBEAWithUnsafeSupport() || isHitachi() || isSAP()) && is14() && loadClass("sun.misc.Unsafe") != null;
+    }
+
+    private boolean canUseHarmonyReflectionProvider() {
+        return isHarmony();
     }
 
     public static boolean reverseFieldDefinition() {
         return reverseFieldOrder;
     }
 
-	/**
-	 * Checks if the jvm supports awt.
-	 */
-	public boolean supportsAWT() {
-		return this.supportsAWT;
-	}
+    /**
+     * Checks if the jvm supports awt.
+     */
+    public boolean supportsAWT() {
+        return this.supportsAWT;
+    }
 
-	/**
-	 * Checks if the jvm supports sql.
-	 */
-	public boolean supportsSQL() {
-		return this.supportsSQL;
-	}
+    /**
+     * Checks if the jvm supports swing.
+     */
+    public boolean supportsSwing() {
+        return this.supportsSwing;
+    }
 
+    /**
+     * Checks if the jvm supports sql.
+     */
+    public boolean supportsSQL() {
+        return this.supportsSQL;
+    }
+
+    private Object readResolve() {
+        loaderCache = new HashMap();
+        return this;
+    }
+    
+    public static void main(String[] args) {
+        boolean reverse = false;
+        Field[] fields = AttributedString.class.getDeclaredFields();
+        for (int i = 0; i < fields.length; i++) {
+            if (fields[i].getName().equals("text")) {
+                reverse = i > 3;
+                break;
+            }
+        }
+        if (reverse) {
+            fields = JVM.class.getDeclaredFields();
+            for (int i = 0; i < fields.length; i++) {
+                if (fields[i].getName().equals("reflectionProvider")) {
+                    reverse = i > 2;
+                    break;
+                }
+            }
+        }
+
+        JVM jvm = new JVM();
+        System.out.println("XStream JVM diagnostics");
+        System.out.println("java.specification.version: " + System.getProperty("java.specification.version"));
+        System.out.println("java.vm.vendor: " + vendor);
+        System.out.println("Version: " + majorJavaVersion);
+        System.out.println("XStream support for enhanced Mode: " + (jvm.canUseSun14ReflectionProvider() || jvm.canUseHarmonyReflectionProvider()));
+        System.out.println("Supports AWT: " + jvm.supportsAWT());
+        System.out.println("Supports SQL: " + jvm.supportsSQL());
+        System.out.println("Reverse field order detected (may have failed): " + reverse);
+    }
 }

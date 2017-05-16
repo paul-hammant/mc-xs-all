@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2004, 2005, 2006 Joe Walnes.
+ * Copyright (C) 2006, 2007 XStream Committers.
+ * All rights reserved.
+ *
+ * The software in this package is published under the terms of the BSD
+ * style license a copy of which has been included with this distribution in
+ * the LICENSE.txt file.
+ * 
+ * Created on 15. March 2004 by Joe Walnes
+ */
 package com.thoughtworks.xstream.core;
 
 import com.thoughtworks.xstream.alias.ClassMapper;
@@ -14,6 +25,7 @@ import com.thoughtworks.xstream.mapper.Mapper;
 
 import java.util.Iterator;
 
+
 public class TreeUnmarshaller implements UnmarshallingContext {
 
     private Object root;
@@ -24,8 +36,9 @@ public class TreeUnmarshaller implements UnmarshallingContext {
     private DataHolder dataHolder;
     private final PrioritizedList validationList = new PrioritizedList();
 
-    public TreeUnmarshaller(Object root, HierarchicalStreamReader reader,
-                            ConverterLookup converterLookup, Mapper mapper) {
+    public TreeUnmarshaller(
+        Object root, HierarchicalStreamReader reader, ConverterLookup converterLookup,
+        Mapper mapper) {
         this.root = root;
         this.reader = reader;
         this.converterLookup = converterLookup;
@@ -33,26 +46,38 @@ public class TreeUnmarshaller implements UnmarshallingContext {
     }
 
     /**
-     * @deprecated As of 1.2, use {@link #TreeUnmarshaller(Object, HierarchicalStreamReader, ConverterLookup, Mapper)}
+     * @deprecated As of 1.2, use
+     *             {@link #TreeUnmarshaller(Object, HierarchicalStreamReader, ConverterLookup, Mapper)}
      */
-    public TreeUnmarshaller(Object root, HierarchicalStreamReader reader,
-                            ConverterLookup converterLookup, ClassMapper classMapper) {
+    public TreeUnmarshaller(
+        Object root, HierarchicalStreamReader reader, ConverterLookup converterLookup,
+        ClassMapper classMapper) {
         this(root, reader, converterLookup, (Mapper)classMapper);
     }
 
-
     public Object convertAnother(Object parent, Class type) {
-        Converter converter = converterLookup.lookupConverterForType(type);
-        return convert(parent, type,converter);
+        return convertAnother(parent, type, null);
     }
 
     public Object convertAnother(Object parent, Class type, Converter converter) {
+        type = mapper.defaultImplementationOf(type);
+        if (converter == null) {
+            converter = converterLookup.lookupConverterForType(type);
+        } else {
+            if (!converter.canConvert(type)) {
+                ConversionException e = new ConversionException(
+                    "Explicit selected converter cannot handle type");
+                e.add("item-type", type.getName());
+                e.add("converter-type", converter.getClass().getName());
+                throw e;
+            }
+        }
         return convert(parent, type, converter);
     }
 
     protected Object convert(Object parent, Class type, Converter converter) {
         try {
-            types.push(mapper.defaultImplementationOf(type));
+            types.push(type);
             Object result = converter.unmarshal(reader, this);
             types.popSilently();
             return result;
@@ -117,7 +142,7 @@ public class TreeUnmarshaller implements UnmarshallingContext {
         Object result = convertAnother(null, type);
         Iterator validations = validationList.iterator();
         while (validations.hasNext()) {
-            Runnable runnable = (Runnable) validations.next();
+            Runnable runnable = (Runnable)validations.next();
             runnable.run();
         }
         return result;
