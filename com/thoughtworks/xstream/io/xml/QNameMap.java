@@ -11,7 +11,7 @@ import java.util.Map;
  * allowing class aliases and namespace aware mappings of QNames to class names.
  *
  * @author James Strachan
- * @version $Revision: 689 $
+ * @version $Revision: 1049 $
  */
 public class QNameMap {
 

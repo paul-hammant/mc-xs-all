@@ -22,7 +22,10 @@ import com.thoughtworks.xstream.mapper.Mapper;
  * @author Chung-Onn Cheong
  */
 public class Annotations {
-    private static final Set<Class<?>> configuredTypes = new HashSet<Class<?>>();
+	/**
+	 * Collection of visited types.
+	 */
+    private static final Set<Class<?>> visitedTypes = new HashSet<Class<?>>();
 
     /**
      * This class is not instantiable
@@ -38,7 +41,7 @@ public class Annotations {
      * @param xstream the XStream object that will be configured
      */
     public static synchronized void configureAliases(XStream xstream, Class<?>... topLevelClasses) {
-        configuredTypes.clear();
+        visitedTypes.clear();
         for(Class<?> topLevelClass : topLevelClasses){
             configureClass(xstream, topLevelClass);
         }
@@ -46,15 +49,17 @@ public class Annotations {
 
     private static synchronized void configureClass(XStream xstream, Class<?> configurableClass) {
         if (configurableClass == null
-              || configuredTypes.contains(configurableClass)) {
+              || visitedTypes.contains(configurableClass)) {
             return;
         }
-
+        
         if(Converter.class.isAssignableFrom(configurableClass)){
             Class<Converter> converterType = (Class<Converter>)configurableClass;
             registerConverter(xstream, converterType);
             return;
         }
+
+        visitedTypes.add(configurableClass);
 
         //Do Class Level Converters
         AnnotatedElement element = configurableClass;
@@ -77,14 +82,12 @@ public class Annotations {
             if(aliasAnnotation.impl() != Void.class){
                 //Alias for Interface/Class with an impl
                 xstream.alias(aliasAnnotation.value(), configurableClass, aliasAnnotation.impl());
-                configuredTypes.add(configurableClass);
                 if(configurableClass.isInterface()){
                     configureClass(xstream,aliasAnnotation.impl()); //alias Interface's impl
                     return;
                 }
             }else{
                 xstream.alias(aliasAnnotation.value(), configurableClass);
-                configuredTypes.add(configurableClass);
             }
         }
 
@@ -108,7 +111,6 @@ public class Annotations {
                                 itemFieldName, itemType);
                     }
                 }
-                configuredTypes.add(configurableClass);
             } catch (Exception e) {
                 System.err.println("Fail to derive ImplicitCollection member type");
             }
@@ -152,8 +154,9 @@ public class Annotations {
 
     private static void registerConverter(XStream xstream, Class<? extends Converter> converterType) {
         Converter converter;
-        if(configuredTypes.contains(converterType))
+        if(visitedTypes.contains(converterType))
             return;
+        visitedTypes.add(converterType);
         if (AbstractCollectionConverter.class.isAssignableFrom(converterType)) {
             try {
                 Constructor<? extends Converter> converterConstructor = converterType.getConstructor(Mapper.class);
@@ -172,7 +175,6 @@ public class Annotations {
             }
         }
         xstream.registerConverter(converter);
-        configuredTypes.add(converterType);
 
     }
 

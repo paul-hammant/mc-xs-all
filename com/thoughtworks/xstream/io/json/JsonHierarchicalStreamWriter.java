@@ -74,7 +74,8 @@ public class JsonHierarchicalStreamWriter implements ExtendedHierarchicalStreamW
             writer.write(name);
             writer.write("\": ");
         }
-        if (Collection.class.isAssignableFrom(clazz) || clazz.isArray()) {
+        if (clazz != null &&
+                (Collection.class.isAssignableFrom(clazz) || clazz.isArray())) {
             writer.write("[");
         } else if (hasChildren(clazz)) {
             writer.write("{");
@@ -127,11 +128,28 @@ public class JsonHierarchicalStreamWriter implements ExtendedHierarchicalStreamW
         if (needsQuotes(clazz)) {
             writer.write("\"");
         }
-		int i = 0;
-		for(int idx = 0; (idx = text.indexOf('"', idx)) >= 0; i = idx+1) {
-			this.writer.write(text.substring(i, idx));
-			this.writer.write("\\\\\"");
-		}
+
+        int i = 0;
+        while(true) {
+            int idxQuote = text.indexOf('"', i);
+            int idxSlash = text.indexOf('\\', i);
+            int idx = Math.min(
+                idxQuote < 0 ? Integer.MAX_VALUE : idxQuote, 
+                idxSlash < 0 ? Integer.MAX_VALUE : idxSlash);
+            if (idx == Integer.MAX_VALUE) {
+                break;
+            }
+            if (idx != 0) {
+                this.writer.write(text.substring(i, idx));
+            }
+            if (idx == idxQuote) {
+                this.writer.write("\\\"");
+            } else {
+                this.writer.write("\\\\");
+            }
+            i = idx+1;
+        }
+        
         this.writer.write(text.substring(i));
         if (needsQuotes(clazz)) {
             writer.write("\"");
@@ -157,7 +175,8 @@ public class JsonHierarchicalStreamWriter implements ExtendedHierarchicalStreamW
         } else {
             finishTag();
             Node node = (Node) elementStack.pop();
-            if (Collection.class.isAssignableFrom(node.clazz) || node.clazz.isArray()) {
+            if (node.clazz != null &&
+                    (Collection.class.isAssignableFrom(node.clazz) || node.clazz.isArray())) {
                 writer.write("]");
             } else if (hasChildren(node.clazz)) {
                 writer.write("}");
@@ -204,5 +223,4 @@ public class JsonHierarchicalStreamWriter implements ExtendedHierarchicalStreamW
     public HierarchicalStreamWriter underlyingWriter() {
         return this;
     }
-
 }

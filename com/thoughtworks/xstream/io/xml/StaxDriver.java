@@ -19,7 +19,7 @@ import com.thoughtworks.xstream.io.StreamException;
  * A driver using the StAX API
  *
  * @author James Strachan
- * @version $Revision: 904 $
+ * @version $Revision: 1049 $
  */
 public class StaxDriver extends AbstractXmlDriver {
 

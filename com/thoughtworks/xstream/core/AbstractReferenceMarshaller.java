@@ -10,9 +10,6 @@ import com.thoughtworks.xstream.io.path.PathTracker;
 import com.thoughtworks.xstream.io.path.PathTrackingWriter;
 import com.thoughtworks.xstream.mapper.Mapper;
 
-import java.util.HashSet;
-import java.util.Set;
-
 /**
  * Abstract base class for a TreeMarshaller, that can build refrences.
  * 
@@ -24,9 +21,9 @@ import java.util.Set;
 public abstract class AbstractReferenceMarshaller extends TreeMarshaller {
 
     private ObjectIdDictionary references = new ObjectIdDictionary();
+    private ObjectIdDictionary implicitElements = new ObjectIdDictionary();
     private PathTracker pathTracker = new PathTracker();
     private Path lastPath;
-    private Set implicitElements = new HashSet();
 
     public AbstractReferenceMarshaller(HierarchicalStreamWriter writer,
                                    ConverterLookup converterLookup,
@@ -43,19 +40,18 @@ public abstract class AbstractReferenceMarshaller extends TreeMarshaller {
             Path currentPath = pathTracker.getPath();
             Object existingReferenceKey = references.lookupId(item);
             if (existingReferenceKey != null) {
-                if (implicitElements.contains(existingReferenceKey)) {
-                    throw new ReferencedImplicitElementException("Cannot reference implicit element: " + item.toString());
-                }
                 writer.addAttribute(getMapper().aliasForAttribute("reference"), createReference(currentPath, existingReferenceKey));
+            } else if (implicitElements.lookupId(item) != null) {
+                throw new ReferencedImplicitElementException(item, currentPath);
             } else {
                 Object newReferenceKey = createReferenceKey(currentPath);
                 if (lastPath == null || !currentPath.isAncestor(lastPath)) {
                     fireValidReference(newReferenceKey);
                     lastPath = currentPath;
+                    references.associateId(item, newReferenceKey);
                 } else {
-                    implicitElements.add(newReferenceKey);
+                    implicitElements.associateId(item, newReferenceKey);
                 }
-                references.associateId(item, newReferenceKey);
                 converter.marshal(item, writer, this);
             }
         }
@@ -66,8 +62,16 @@ public abstract class AbstractReferenceMarshaller extends TreeMarshaller {
     protected abstract void fireValidReference(Object referenceKey);
     
     public static class ReferencedImplicitElementException extends ConversionException {
+        /**
+         * @deprecated since 1.2.1
+         */
         public ReferencedImplicitElementException(final String msg) {
             super(msg);
+        }
+        public ReferencedImplicitElementException(final Object item, final Path path) {
+            super("Cannot reference implicit element");
+            add("implicit-element", item.toString());
+            add("referencing-element", path.toString());
         }
     }
 }
