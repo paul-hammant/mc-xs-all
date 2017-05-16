@@ -32,9 +32,11 @@ import java.util.WeakHashMap;
 /**
  * Pure Java ObjectFactory that instantiates objects using standard Java reflection, however the types of objects
  * that can be constructed are limited.
- * <p/>
+ * <p>
  * Can newInstance: classes with public visibility, outer classes, static inner classes, classes with default constructors
  * and any class that implements java.io.Serializable.
+ * </p>
+ * <p>
  * Cannot newInstance: classes without public visibility, non-static inner classes, classes without default constructors.
  * Note that any code in the constructor of a class will be executed when the ObjectFactory instantiates the object.
  * </p>
@@ -173,7 +175,9 @@ public class PureJavaReflectionProvider implements ReflectionProvider {
     protected void validateFieldAccess(Field field) {
         if (Modifier.isFinal(field.getModifiers())) {
             if (JVM.is15()) {
-                field.setAccessible(true);
+                if (!field.isAccessible()) {
+                    field.setAccessible(true);
+                }
             } else {
                 throw new ObjectAccessException("Invalid final field "
                         + field.getDeclaringClass().getName() + "." + field.getName());
